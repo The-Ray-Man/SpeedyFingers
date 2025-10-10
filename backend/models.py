@@ -1,21 +1,16 @@
 from datetime import datetime
-
 from pydantic import BaseModel
 
 
-class User(BaseModel):
-    id: str
-    name: str
+class LeaderboardEntry(BaseModel):
+    name: str  # Player name or Team name
+    score: int
+    symbols: int  # Number of symbols completed
+    timestamp: datetime = datetime.now()
 
 
-class TodoItem(BaseModel):
-    id: int
-    title: str
-    description: str
-    deadline: datetime
-
-
-class TodoItemForCreate(BaseModel):
-    title: str
-    description: str
-    deadline: datetime
+class ScoreSubmission(BaseModel):
+    name: str  # Player name or Team name
+    score: int
+    symbols: int
+    game_mode: str  # "single" or "multi"

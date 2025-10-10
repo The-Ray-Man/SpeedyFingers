@@ -1,0 +1,92 @@
+/**
+ * API Client for VIS Minigame Leaderboard Backend
+ * 
+ * Usage:
+ * import { submitScore, getSinglePlayerLeaderboard, getMultiPlayerLeaderboard } from './leaderboardApi';
+ */
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+export type LeaderboardEntry = {
+  rank: number;
+  name?: string;
+  team?: string;
+  score: number;
+  symbols: number;
+};
+
+export type ScoreSubmission = {
+  name: string;
+  score: number;
+  symbols: number;
+  gameMode: "single" | "multi";
+};
+
+/**
+ * Submit a score to the leaderboard
+ * @param submission Score submission data
+ * @returns Updated leaderboard
+ */
+export async function submitScore(submission: ScoreSubmission): Promise<LeaderboardEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/score/submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: submission.name,
+      score: submission.score,
+      symbols: submission.symbols,
+      game_mode: submission.gameMode,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit score: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.leaderboard;
+}
+
+/**
+ * Get the single player leaderboard
+ * @returns Array of single player leaderboard entries
+ */
+export async function getSinglePlayerLeaderboard(): Promise<LeaderboardEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/leaderboard/single`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch single player leaderboard: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get the multi player leaderboard
+ * @returns Array of multi player leaderboard entries
+ */
+export async function getMultiPlayerLeaderboard(): Promise<LeaderboardEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/leaderboard/multi`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch multi player leaderboard: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Health check for the backend
+ * @returns True if backend is healthy
+ */
+export async function checkHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    const data = await response.json();
+    return data.status === "healthy";
+  } catch {
+    return false;
+  }
+}
