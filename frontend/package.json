@@ -12,6 +12,9 @@
   "dependencies": {
     "@chakra-ui/react": "^3.27.1",
     "@emotion/react": "^11.14.0",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/hands": "^0.4.1675469240",
     "next-themes": "^0.4.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
