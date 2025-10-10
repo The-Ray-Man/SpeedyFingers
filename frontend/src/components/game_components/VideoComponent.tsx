@@ -88,7 +88,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
 
         //     const data = await res.json();
         //     if (data?.score !== undefined && onScoreIncrement) {
-        //       onScoreIncrement(Number(data.score));
+        //       onScoreIncrement();
         //     }
         //   } catch (err) {
         //     console.error("Error sending frame for scoring:", err);
