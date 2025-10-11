@@ -14,20 +14,36 @@ import { useUser } from "@/context/UserContext";
 import DevMode from "./pages/DevMode";
 
 const RequireUserLayout: React.FC = () => {
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const location = useLocation();
-  if (!user) {
+
+  if (loading) return <div>Loading user...</div>;
+
+  if (!user)
     return <Navigate to="/changeuser" replace state={{ from: location.pathname }} />;
-  }
-  return <Outlet />;
+
+  return (
+    <>
+    <div
+      style={{
+      height: "calc(100vh - var(--footer-height))",
+      width: "100vw",
+      overflow: "auto",
+      }}
+    >
+      <Outlet />
+    </div>
+    <FooterBar />
+    </>
+  );
 };
+
 
 
 const App = () => {
   return (
     <MusicProvider autoPlay={true} defaultVolume={0.5}>
       <Router>
-
         <Routes>
           {/* Public route(s) */}
           <Route path="/changeuser" element={<ChangeUser />} />
@@ -44,9 +60,6 @@ const App = () => {
             <Route path="/game-2" element={<BodyGame />} />
           </Route>
         </Routes>
-
-         {/* <FooterBar /> */}
-
       </Router>
     </MusicProvider>
   );
