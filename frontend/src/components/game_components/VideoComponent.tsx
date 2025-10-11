@@ -3,23 +3,39 @@ import { Box, Button, HStack, VStack, Text } from "@chakra-ui/react";
 import { usePoseDetection, type PoseDetectionConfig } from "../../hooks/usePoseDetection";
 import { drawTrackedPersons, clearCanvas, type DrawOptions } from "../../utils/poseDrawing";
 import { PersonTracker, type TrackedPerson } from "../../utils/personTracking";
+import ShapeOverlay, { type Shape } from "./ShapeOverlay";
+import { checkAnyPoseCollision } from "@/utils/collisionDetection";
+import type { Pose } from '@tensorflow-models/pose-detection';
 
 interface VideoComponentProps {
   scoreTrackable: boolean;
   onScoreIncrement?: (incrementValue: number) => void;
+  currentShape?: Shape | null;
+  isShapeVisible?: boolean;
+  onCollisionDetected?: (hasCollision: boolean) => void;
+  showControls?: boolean;
 }
 
-const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScoreIncrement }) => {
+const VideoComponent: React.FC<VideoComponentProps> = ({ 
+  scoreTrackable, 
+  onScoreIncrement,
+  currentShape,
+  isShapeVisible = false,
+  onCollisionDetected,
+  showControls = false,
+}) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
     const intervalRef = useRef<number | null>(null);
     const personTrackerRef = useRef<PersonTracker>(new PersonTracker());
+    const [hasCollision, setHasCollision] = useState(false);
+    const [currentPoses, setCurrentPoses] = useState<Pose[]>([]);
 
     // Pose detection state
     const [poseConfig, setPoseConfig] = useState<PoseDetectionConfig>({
-      modelType: 'MultiPose.Lightning', // Changed to MultiPose for tracking multiple people
-      maxPoses: 2, // Track 2 people
+      modelType: 'MultiPose.Lightning', // MultiPose for tracking multiple people
+      maxPoses: 6, // Track up to 6 people
       minPoseScore: 0.25,
       minKeypointScore: 0.3,
     });
@@ -101,6 +117,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
         try {
           // Detect poses
           const poses = await detectPoses(video);
+          setCurrentPoses(poses);
 
           // Update person tracking
           const tracked = personTrackerRef.current.updatePoses(poses);
@@ -127,6 +144,25 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
         }
       };
     }, [detector, showPoseDetection, detectPoses, drawOptions, poseConfig.minKeypointScore]);
+
+    // Collision detection
+    useEffect(() => {
+      if (!currentShape || !isShapeVisible || !overlayCanvasRef.current || currentPoses.length === 0) {
+        setHasCollision(false);
+        return;
+      }
+
+      const canvas = overlayCanvasRef.current;
+      const collision = checkAnyPoseCollision(
+        currentPoses,
+        currentShape,
+        canvas.width,
+        canvas.height
+      );
+
+      setHasCollision(collision);
+      onCollisionDetected?.(collision);
+    }, [currentPoses, currentShape, isShapeVisible, onCollisionDetected]);
 
     // Capture + send frames periodically (kept for future use)
     useEffect(() => {
@@ -199,8 +235,9 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
     }, [scoreTrackable, onScoreIncrement]);
 
     return (
-      <VStack width="100%" height="100%" gap={2}>
+      <VStack width="100%" height="100%" gap={showControls ? 2 : 0}>
         {/* Controls */}
+        {showControls && (
         <HStack 
           width="100%" 
           padding={2} 
@@ -311,6 +348,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
           {isPoseLoading && <Text fontSize="sm" color="yellow.300">Loading model...</Text>}
           {poseError && <Text fontSize="sm" color="red.300">Error: {poseError}</Text>}
         </HStack>
+        )}
 
         {/* Video with overlay */}
         <Box
@@ -341,9 +379,21 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
               height: "100%", 
               transform: "scaleX(-1)", 
               objectFit: "cover",
-              pointerEvents: "none"
+              pointerEvents: "none",
+              zIndex: 2,
             }}
           />
+          {/* Shape collision overlay */}
+          {currentShape && overlayCanvasRef.current && (
+            <ShapeOverlay
+              shape={currentShape}
+              isVisible={isShapeVisible}
+              hasCollision={hasCollision}
+              opacity={0.5}
+              canvasWidth={overlayCanvasRef.current.width || 640}
+              canvasHeight={overlayCanvasRef.current.height || 480}
+            />
+          )}
         </Box>
 
         <canvas ref={canvasRef} style={{ display: "none" }} />
