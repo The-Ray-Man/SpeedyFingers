@@ -16,8 +16,8 @@ const BodyGame: React.FC = () => {
     const intervalRef = useRef<number | null>(null);
     const startTimeRef = useRef<number>(0); // Store the start time
 
-    const handleScoreIncrement = useCallback((incrementValue: number) => {
-        setScore((prevScore) => prevScore + incrementValue);
+    const handleScoreIncrement = useCallback(() => {
+        setScore((prevScore) => prevScore + 1);
     }, []); // Empty dependency array since it only uses setScore which is stable
 
     // Timer logic
