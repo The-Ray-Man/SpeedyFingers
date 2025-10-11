@@ -31,7 +31,7 @@ const Home = () => {
             <Button
               size="lg"
               colorScheme="blue"
-              onClick={() => navigate('/fingerGameMenu')}
+              onClick={() => navigate('/TutorialFinger')}
               px={16}
               py={10}
              
@@ -47,7 +47,7 @@ const Home = () => {
             <Button
               size="lg"
               colorScheme="green"
-              onClick={() => navigate('/bodyGameMenu')}
+              onClick={() => navigate('/TutorialBody')}
               px={16}
               py={10}
              
