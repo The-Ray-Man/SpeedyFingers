@@ -4,7 +4,6 @@ import {
   Container,
   Heading,
   VStack,
-  Text,
   Center,
 } from "@chakra-ui/react";
 import { useNavigate } from 'react-router-dom';

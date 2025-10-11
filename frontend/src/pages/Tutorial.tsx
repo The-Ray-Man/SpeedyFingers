@@ -4,13 +4,9 @@ import {
     Container, 
     Heading, 
     Text, 
-    VStack, 
     HStack,
     Button,
     Card,
-    List,
-    Badge,
-    Code,
     Image,
     Progress,
     Icon
