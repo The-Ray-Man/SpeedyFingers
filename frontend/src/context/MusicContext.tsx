@@ -20,7 +20,7 @@ interface MusicProviderProps {
 
 export const MusicProvider: React.FC<MusicProviderProps> = ({ 
   children, 
-  autoPlay = false,
+  autoPlay = true,
   defaultVolume = 0.5 
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
