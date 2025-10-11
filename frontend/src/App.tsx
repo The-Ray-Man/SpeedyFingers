@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
 import Home from "@/pages/Home";
 import TutorialFinger from "@/pages/TutorialFinger";
 import TutorialBody from "@/pages/TutorialBody";
@@ -7,19 +7,36 @@ import BodyGame from "./pages/BodyGame";
 import FingerGameMenu from "./pages/FingerGameMenu";
 import BodyGameMenu from "./pages/BodyGameMenu";
 import { MusicProvider } from "./context/MusicContext";
+import ChangeUser from "@/pages/ChangeUser";
+import { useUser } from "@/context/UserContext";
+
+const RequireUserLayout: React.FC = () => {
+  const { user } = useUser();
+  const location = useLocation();
+  if (!user) {
+    return <Navigate to="/changeuser" replace state={{ from: location.pathname }} />;
+  }
+  return <Outlet />;
+};
 
 const App = () => {
   return (
     <MusicProvider autoPlay={false} defaultVolume={0.5}>
       <Router>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
-          <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
-          <Route path="/tutorialFinger" element={<TutorialFinger />} />
-          <Route path="/tutorialBody" element={<TutorialBody />} />
-          <Route path="/game-1" element={<FingerGame />} />
-          <Route path="/game-2" element={<BodyGame />} />
+          {/* Public route(s) */}
+          <Route path="/changeuser" element={<ChangeUser />} />
+
+          {/* Protected routes under a single guard */}
+          <Route element={<RequireUserLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
+            <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
+            <Route path="/tutorialFinger" element={<TutorialFinger />} />
+            <Route path="/tutorialBody" element={<TutorialBody />} />
+            <Route path="/game-1" element={<FingerGame />} />
+            <Route path="/game-2" element={<BodyGame />} />
+          </Route>
         </Routes>
       </Router>
     </MusicProvider>
