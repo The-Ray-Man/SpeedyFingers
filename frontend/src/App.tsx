@@ -64,8 +64,6 @@ const App = () => {
           </Route>
         </Routes>
 
-         <FooterBar />
-
         </Router>
       </RewardSoundProvider>
     </MusicProvider>
