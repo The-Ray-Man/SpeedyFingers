@@ -44,7 +44,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-python app.py
+python3 app.py
 ```
 
 You can then get started by visiting http://localhost:8000/api/docs.
