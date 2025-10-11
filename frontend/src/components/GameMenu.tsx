@@ -10,13 +10,9 @@ import {
   Card,
   Center,
 } from "@chakra-ui/react";
-
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
-import { 
-  getSinglePlayerLeaderboard, 
-  getMultiPlayerLeaderboard,
-  type LeaderboardEntry 
-} from "../leaderboardApi";
+import { type LeaderboardEntry } from "../leaderboardApi";
 
 // Helper function to get rank display (medal or number)
 const getRankDisplay = (rank: number): string | number => {
@@ -102,21 +98,35 @@ const Leaderboard = ({
   </Card.Root>
 );
 
-const App = () => {
+interface GameMenuProps {
+  gameTitle: string;
+  gameIcon: string;
+  singlePlayerRoute: string;
+  multiPlayerRoute?: string;
+  fetchLeaderboards: () => Promise<{
+    singlePlayer: LeaderboardEntry[];
+    multiPlayer: LeaderboardEntry[];
+  }>;
+}
+
+const GameMenu = ({
+  gameTitle,
+  gameIcon,
+  singlePlayerRoute,
+  multiPlayerRoute,
+  fetchLeaderboards,
+}: GameMenuProps) => {
   const [singlePlayerLeaderboard, setSinglePlayerLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [multiPlayerLeaderboard, setMultiPlayerLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Fetch leaderboards from backend
-  const fetchLeaderboards = async () => {
+  const loadLeaderboards = async () => {
     try {
-      const [singleData, multiData] = await Promise.all([
-        getSinglePlayerLeaderboard(),
-        getMultiPlayerLeaderboard(),
-      ]);
-
-      setSinglePlayerLeaderboard(singleData);
-      setMultiPlayerLeaderboard(multiData);
+      const { singlePlayer, multiPlayer } = await fetchLeaderboards();
+      setSinglePlayerLeaderboard(singlePlayer);
+      setMultiPlayerLeaderboard(multiPlayer);
     } catch (error) {
       console.error("Error fetching leaderboards:", error);
     } finally {
@@ -126,38 +136,52 @@ const App = () => {
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchLeaderboards();
+    loadLeaderboards();
   }, []);
 
   // Auto-refresh leaderboards every 5 seconds for live updates
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchLeaderboards();
+      loadLeaderboards();
     }, 5000);
 
     return () => clearInterval(interval);
   }, []);
 
   const handleSinglePlayer = () => {
-
-    window.location.href = "/game-1";
+    navigate(singlePlayerRoute);
   };
 
   const handleMultiPlayer = () => {
-    alert("Multiplayer mode coming soon!");
+    if (multiPlayerRoute) {
+      navigate(multiPlayerRoute);
+    } else {
+      alert("Multiplayer mode coming soon!");
+    }
+  };
+
+  const handleBackToHome = () => {
+    navigate('/');
   };
 
   return (
     <Container maxW="container.xl" py={8}>
       <VStack gap={8} align="stretch">
         {/* Header */}
-        <Box textAlign="center">
-          <Heading size="5xl" mb={2}>
-            VIS Minigame Challenge
-          </Heading>
-          <Text fontSize="xl" color="gray.600">
-            Test your skills by recreating LaTeX symbols and shapes!
-          </Text>
+        <Box>
+          <Button 
+            onClick={handleBackToHome}
+            colorScheme="gray"
+            variant="ghost"
+            mb={4}
+          >
+            ← Back to Home
+          </Button>
+          <Box textAlign="center">
+            <Heading size="5xl" mb={2}>
+              {gameIcon} {gameTitle}
+            </Heading>
+          </Box>
         </Box>
 
         {/* Game Modes with Leaderboards */}
@@ -199,16 +223,10 @@ const App = () => {
           </HStack>
         )}
 
-        {/* Footer Info */}
-        <Box textAlign="center" color="gray.500" fontSize="sm" pt={4}>
-          <Text>
-            Recreate as many LaTeX symbols and shapes as possible within the time limit!
-          </Text>
-          <Text mt={1}>Best played against a plain background with ≥2 players for team mode.</Text>
-        </Box>
+        
       </VStack>
     </Container>
-  );1
+  );
 };
 
-export default App;
+export default GameMenu;

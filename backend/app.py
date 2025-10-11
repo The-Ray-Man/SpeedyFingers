@@ -11,6 +11,12 @@ from models import LeaderboardEntry, ScoreSubmission
 
 # File paths for persistent storage
 LEADERBOARD_DIR = Path("data")
+FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
+FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
+BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
+BODY_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "body_multi_player.json"
+
+# Legacy file paths (for backward compatibility)
 SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "single_player.json"
 MULTI_PLAYER_FILE = LEADERBOARD_DIR / "multi_player.json"
 
@@ -33,11 +39,17 @@ def initialize_storage():
     """Create data directory and initialize leaderboard files if they don't exist."""
     LEADERBOARD_DIR.mkdir(exist_ok=True)
     
-    if not SINGLE_PLAYER_FILE.exists():
-        SINGLE_PLAYER_FILE.write_text("[]")
-    
-    if not MULTI_PLAYER_FILE.exists():
-        MULTI_PLAYER_FILE.write_text("[]")
+    # Initialize all leaderboard files
+    for file_path in [
+        FINGER_SINGLE_PLAYER_FILE,
+        FINGER_MULTI_PLAYER_FILE,
+        BODY_SINGLE_PLAYER_FILE,
+        BODY_MULTI_PLAYER_FILE,
+        SINGLE_PLAYER_FILE,
+        MULTI_PLAYER_FILE,
+    ]:
+        if not file_path.exists():
+            file_path.write_text("[]")
 
 
 def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
@@ -103,8 +115,8 @@ async def startup_event():
 
 @app.get("/api/leaderboard/single", response_model=list[dict])
 def get_single_player_leaderboard():
-    """Get single player leaderboard with ranks."""
-    entries = load_leaderboard(SINGLE_PLAYER_FILE)
+    """Get single player leaderboard with ranks (legacy - defaults to finger game)."""
+    entries = load_leaderboard(FINGER_SINGLE_PLAYER_FILE)
     return [
         {
             "rank": idx + 1,
@@ -118,8 +130,58 @@ def get_single_player_leaderboard():
 
 @app.get("/api/leaderboard/multi", response_model=list[dict])
 def get_multi_player_leaderboard():
-    """Get multi player leaderboard with ranks."""
-    entries = load_leaderboard(MULTI_PLAYER_FILE)
+    """Get multi player leaderboard with ranks (legacy - defaults to finger game)."""
+    entries = load_leaderboard(FINGER_MULTI_PLAYER_FILE)
+    return [
+        {
+            "rank": idx + 1,
+            "team": entry.name,
+            "score": entry.score,
+            "symbols": entry.symbols,
+        }
+        for idx, entry in enumerate(entries)
+    ]
+
+
+@app.get("/api/leaderboard/{game_type}/single", response_model=list[dict])
+def get_game_single_player_leaderboard(game_type: str):
+    """Get single player leaderboard for a specific game type."""
+    if game_type == "finger":
+        file_path = FINGER_SINGLE_PLAYER_FILE
+    elif game_type == "body":
+        file_path = BODY_SINGLE_PLAYER_FILE
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="game_type must be 'finger' or 'body'"
+        )
+    
+    entries = load_leaderboard(file_path)
+    return [
+        {
+            "rank": idx + 1,
+            "name": entry.name,
+            "score": entry.score,
+            "symbols": entry.symbols,
+        }
+        for idx, entry in enumerate(entries)
+    ]
+
+
+@app.get("/api/leaderboard/{game_type}/multi", response_model=list[dict])
+def get_game_multi_player_leaderboard(game_type: str):
+    """Get multi player leaderboard for a specific game type."""
+    if game_type == "finger":
+        file_path = FINGER_MULTI_PLAYER_FILE
+    elif game_type == "body":
+        file_path = BODY_MULTI_PLAYER_FILE
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="game_type must be 'finger' or 'body'"
+        )
+    
+    entries = load_leaderboard(file_path)
     return [
         {
             "rank": idx + 1,
@@ -149,6 +211,14 @@ def submit_score(submission: ScoreSubmission):
             detail="Score and symbols must be non-negative"
         )
     
+    # Determine game type (default to finger for backward compatibility)
+    game_type = getattr(submission, 'game_type', 'finger')
+    if game_type not in ["finger", "body"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="game_type must be 'finger' or 'body'"
+        )
+    
     # Create leaderboard entry
     entry = LeaderboardEntry(
         name=submission.name,
@@ -157,8 +227,12 @@ def submit_score(submission: ScoreSubmission):
         timestamp=datetime.now()
     )
     
-    # Update appropriate leaderboard
-    file_path = SINGLE_PLAYER_FILE if submission.game_mode == "single" else MULTI_PLAYER_FILE
+    # Update appropriate leaderboard based on game type and mode
+    if game_type == "finger":
+        file_path = FINGER_SINGLE_PLAYER_FILE if submission.game_mode == "single" else FINGER_MULTI_PLAYER_FILE
+    else:  # body
+        file_path = BODY_SINGLE_PLAYER_FILE if submission.game_mode == "single" else BODY_MULTI_PLAYER_FILE
+    
     updated_entries = update_leaderboard(file_path, entry)
     
     # Return updated leaderboard with rank info
