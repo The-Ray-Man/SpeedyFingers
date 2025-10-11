@@ -141,15 +141,12 @@ const App = () => {
   }, []);
 
   const handleSinglePlayer = () => {
-    navigate('/tutorial');
-    console.log("Starting Single Player Mode");
-    // Navigate to single player game
+
+    window.location.href = "/game-1";
   };
 
   const handleMultiPlayer = () => {
-    navigate('/tutorial');
-    console.log("Starting Multi Player Mode");
-    // Navigate to multi player game
+    alert("Multiplayer mode coming soon!");
   };
 
   return (
