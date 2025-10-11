@@ -31,7 +31,7 @@ const Tutorial: React.FC = () => {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [slideProgress, setSlideProgress] = useState(0);
-    const SLIDE_DURATION = 7000; // 7 seconds per slide
+    const SLIDE_DURATION = 700000; // 7 seconds per slide
     const TOTAL_SLIDES = 6; // Total number of slides
 
     useEffect(() => {
@@ -155,8 +155,8 @@ const Tutorial: React.FC = () => {
     };
 
     return (
-        <Box minH="100vh" bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
-            <Container maxW="90vw">
+        <Box minH="80vh"  bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
+            <Container maxW="80vw">
                 <Card.Root size="lg" boxShadow="xl">
                     <Card.Body p={{ base: 4, md: 6 }}>
                         {/* Header with Skip Button and Progress */}
@@ -177,7 +177,7 @@ const Tutorial: React.FC = () => {
                                 <Button
                                     variant="solid"
                                     colorPalette="red"                               
-                                    size="2xl"
+                                    size="xl"
                                     onClick={handleSkip}
                                 >
                                     <Icon>
@@ -233,9 +233,9 @@ const Tutorial: React.FC = () => {
                                 display="flex" 
                                 justifyContent="center" 
                                 bg="gray.100" 
-                                borderRadius="lg" 
+                                borderRadius="sm" 
                                 p={4}
-                                minH="70vh"
+                                minH="50vh"
                                 alignItems="center"
                                 position="relative"
                             >
@@ -243,7 +243,7 @@ const Tutorial: React.FC = () => {
                                     src={currentSlide.image} 
                                     alt={currentSlide.title}
                                     maxH="70vh"
-                                    maxW="100%"
+                                    maxW="70%"
                                     objectFit="contain"
                                     opacity={countdown !== null ? 0.3 : 1}
                                     transition="opacity 0.3s"
