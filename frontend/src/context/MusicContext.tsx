@@ -8,6 +8,7 @@ interface MusicContextType {
   pause: () => void;
   toggle: () => void;
   setVolume: (volume: number) => void;
+  setVolumePercentage: (percentage: number) => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -20,8 +21,8 @@ interface MusicProviderProps {
 
 export const MusicProvider: React.FC<MusicProviderProps> = ({ 
   children, 
-  autoPlay = true,
-  defaultVolume = 0.5 
+  autoPlay = false,
+  defaultVolume = 0.5
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -80,8 +81,15 @@ export const MusicProvider: React.FC<MusicProviderProps> = ({
     }
   };
 
+  const setVolumePercentage = (percentage: number) => {
+    const newVolume = volume * (percentage / 100);
+    setVolume(newVolume);
+  };
+
+
+
   return (
-    <MusicContext.Provider value={{ isPlaying, volume, play, pause, toggle, setVolume }}>
+    <MusicContext.Provider value={{ isPlaying, volume, play, pause, toggle, setVolume, setVolumePercentage }}>
       {children}
     </MusicContext.Provider>
   );

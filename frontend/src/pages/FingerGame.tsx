@@ -20,12 +20,14 @@ import { getRandomGesture, matchGesture, type GestureDefinition } from "../gestu
 import { landmarksToArray } from "../advancedGestureRecognition";
 import { submitScore } from "../leaderboardApi";
 import { Toaster, toaster } from "@/components/ui/toaster";
+import { useRewardSound } from "../context/rewardSoundContext";
 
 const GAME_DURATION = 60; // 60 seconds
 const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
 const PlayMode: React.FC = () => {
   // Game state
+  const { playSound } = useRewardSound();
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState("");
@@ -183,6 +185,7 @@ const PlayMode: React.FC = () => {
     setScore((prev) => {
       const newScore = prev + points;
       console.log(`Score updated: ${prev} -> ${newScore}`);
+      playSound();
       return newScore;
     });
     
