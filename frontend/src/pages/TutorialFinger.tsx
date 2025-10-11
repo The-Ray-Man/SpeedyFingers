@@ -45,7 +45,7 @@ const Tutorial: React.FC = () => {
             } else {
                 // Countdown finished, navigate to game
                 setVolumePercentage(80);
-                navigate('/game-1');
+                navigate('../FingerGameMenu');
             }
         }
     }, [countdown, navigate]);
@@ -134,7 +134,7 @@ const Tutorial: React.FC = () => {
 
     const handleSkip = () => {
         setVolumePercentage(80);
-        navigate('/game-1');
+        navigate('../FingerGameMenu');
     };
 
     const handlePrevious = () => {

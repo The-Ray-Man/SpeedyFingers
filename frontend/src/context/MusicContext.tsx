@@ -37,7 +37,7 @@ export const MusicProvider: React.FC<MusicProviderProps> = ({
     if (autoPlay) {
       audioRef.current.play().catch((error) => {
         console.log('Auto-play prevented:', error);
-        setIsPlaying(false);
+        setIsPlaying(true);
       });
     }
 
