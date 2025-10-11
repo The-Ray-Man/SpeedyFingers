@@ -1,12 +1,14 @@
 import * as React from 'react';
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Text, HStack, Button, Box, Flex, Input, VStack, Heading, Card, Badge } from "@chakra-ui/react";
+import { Text, HStack, Button, Box, Flex, VStack, Heading, Card, Badge } from "@chakra-ui/react";
+import { useNavigate } from 'react-router-dom';
 import VideoComponent from '@/components/game_components/VideoComponent';
 import ProgressBar from '@/components/game_components/ProgressBar';
 import type { Shape } from '@/components/game_components/ShapeOverlay';
 import { generateShapeSequence } from '@/utils/collisionDetection';
 import { submitScore, type LeaderboardEntry, getGameSinglePlayerLeaderboard } from '@/leaderboardApi';
 import { Toaster, toaster } from "@/components/ui/toaster";
+import { useUser } from '@/context/UserContext';
 
 const INITIAL_COUNTDOWN = 5; // 5 seconds before first shape
 const BETWEEN_COUNTDOWN = 4; // 4 seconds between shapes
@@ -20,12 +22,12 @@ const OPACITY_MAX = 0.7; // Maximum opacity
 const OPACITY_STILL = 0.5; // Opacity during still phase
 const TOTAL_SHAPES = 20;
 
-type GameState = 'name-entry' | 'ready' | 'initial-countdown' | 'between-countdown' | 'shape-blinking' | 'shape-still' | 'game-over' | 'game-won';
+type GameState = 'ready' | 'initial-countdown' | 'between-countdown' | 'shape-blinking' | 'shape-still' | 'game-over' | 'game-won';
 
 const BodyGame: React.FC = () => {
-    const [gameState, setGameState] = useState<GameState>('name-entry');
-    const [playerName, setPlayerName] = useState<string>('');
-    const [nameInput, setNameInput] = useState<string>('');
+    const navigate = useNavigate();
+    const { user } = useUser();
+    const [gameState, setGameState] = useState<GameState>('ready');
     const [countdown, setCountdown] = useState<number>(0);
     const [shapes, setShapes] = useState<Shape[]>([]);
     const [currentShapeIndex, setCurrentShapeIndex] = useState<number>(0);
@@ -34,33 +36,26 @@ const BodyGame: React.FC = () => {
     const [hasCollision, setHasCollision] = useState<boolean>(false);
     const [collisionDuringStill, setCollisionDuringStill] = useState<boolean>(false);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [cameraStarted, setCameraStarted] = useState(false);
+    const [cameraStarted, setCameraStarted] = useState(true);
     
     const blinkIntervalRef = useRef<number | null>(null);
     const timeoutRef = useRef<number | null>(null);
     const countdownIntervalRef = useRef<number | null>(null);
+    const hasCollisionRef = useRef<boolean>(false);
+
+    // Check if user exists, redirect if not
+    useEffect(() => {
+        if (!user) {
+            navigate('/changeuser');
+        }
+    }, [user, navigate]);
 
     const handleCollisionDetected = useCallback((collision: boolean) => {
+        hasCollisionRef.current = collision;
         setHasCollision(collision);
-    }, []);
+    }, []); // Empty dependency array - function never changes
 
-    // Handle name submission
-    const handleNameSubmit = useCallback(() => {
-        if (!nameInput.trim()) {
-            toaster.create({
-                title: "Error",
-                description: "Please enter your name!",
-                type: "error",
-            });
-            return;
-        }
-        setPlayerName(nameInput.trim());
-        setGameState('ready');
-        // Start camera when entering ready screen
-        setCameraStarted(true);
-    }, [nameInput]);
-
-    // Initialize game (reset to ready screen, keep name)
+    // Initialize game (reset to ready screen)
     const initializeGame = useCallback(() => {
         const shapeSequence = generateShapeSequence(TOTAL_SHAPES);
         setShapes(shapeSequence);
@@ -72,12 +67,9 @@ const BodyGame: React.FC = () => {
         setCollisionDuringStill(false);
     }, []);
 
-    // Go back to menu (reset everything including name)
+    // Go back to menu
     const handleBackToMenu = useCallback(() => {
-        setPlayerName('');
-        setNameInput('');
-        setGameState('name-entry');
-        setCameraStarted(false);
+        navigate('/');
         if (blinkIntervalRef.current) {
             clearInterval(blinkIntervalRef.current);
         }
@@ -87,7 +79,7 @@ const BodyGame: React.FC = () => {
         if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current);
         }
-    }, []);
+    }, [navigate]);
 
     // Start the game
     const handleStartGame = useCallback(() => {
@@ -239,12 +231,12 @@ const BodyGame: React.FC = () => {
     // Track collisions during still phase - ANY collision = fail
     useEffect(() => {
         if (gameState === 'shape-still') {
-            if (hasCollision && !collisionDuringStill) {
+            if (hasCollisionRef.current && !collisionDuringStill) {
                 console.log('Collision detected during evaluation phase!');
                 setCollisionDuringStill(true);
             }
         }
-    }, [gameState, hasCollision, collisionDuringStill]);
+    }, [gameState, collisionDuringStill]); // Removed hasCollision from dependencies
 
     // Stop the game
     const handleStopGame = useCallback(() => {
@@ -272,9 +264,19 @@ const BodyGame: React.FC = () => {
 
     // Submit score to leaderboard
     const handleSubmitScore = useCallback(async () => {
+        if (!user) {
+            toaster.create({
+                title: "Error",
+                description: "No user found. Please set your username.",
+                type: "error",
+            });
+            navigate('/changeuser');
+            return;
+        }
+
         try {
             await submitScore({
-                name: playerName,
+                name: user.username,
                 score: currentShapeIndex,
                 symbols: currentShapeIndex,
                 gameMode: 'single',
@@ -297,7 +299,7 @@ const BodyGame: React.FC = () => {
                 type: "error",
             });
         }
-    }, [playerName, currentShapeIndex, loadLeaderboard]);
+    }, [user, currentShapeIndex, loadLeaderboard, navigate]);
 
     const handleReset = useCallback(() => {
         if (blinkIntervalRef.current) {
@@ -317,97 +319,36 @@ const BodyGame: React.FC = () => {
         loadLeaderboard();
     }, [loadLeaderboard]);
 
+    // Don't render if no user
+    if (!user) {
+        return null;
+    }
+
     return (
         <Box width="100%" minHeight="100vh" bg="gray.50" position="relative">
             <Toaster />
             
-            {/* Video Background - Always running when camera started */}
-            {cameraStarted && (
-                <Box
-                    position="fixed"
-                    top={0}
-                    left={0}
-                    width="100%"
-                    height="100%"
-                    zIndex={0}
-                    opacity={gameState === 'ready' || gameState === 'game-over' || gameState === 'game-won' ? 0.3 : 1}
-                    transition="opacity 0.3s ease"
-                >
-                    <VideoComponent 
-                        scoreTrackable={gameState !== 'ready' && gameState !== 'game-over' && gameState !== 'game-won'}
-                        currentShape={currentShape}
-                        shapeOpacity={shapeOpacity}
-                        onCollisionDetected={handleCollisionDetected}
-                        showControls={false}
-                        preloadCamera={true}
-                    />
-                </Box>
-            )}
+            {/* Video Background - Always running */}
+            <Box
+                position="fixed"
+                top={0}
+                left={0}
+                width="100%"
+                height="100%"
+                zIndex={0}
+                opacity={gameState === 'ready' || gameState === 'game-over' || gameState === 'game-won' ? 0.3 : 1}
+                transition="opacity 0.3s ease"
+            >
+                <VideoComponent 
+                    scoreTrackable={gameState !== 'ready' && gameState !== 'game-over' && gameState !== 'game-won'}
+                    currentShape={currentShape}
+                    shapeOpacity={shapeOpacity}
+                    onCollisionDetected={handleCollisionDetected}
+                    showControls={false}
+                    preloadCamera={true}
+                />
+            </Box>
             
-            {/* Name Entry Screen */}
-            {gameState === 'name-entry' && (
-                <Flex 
-                    direction="column" 
-                    align="center" 
-                    justify="center" 
-                    minHeight="100vh"
-                    p={8}
-                    position="relative"
-                    zIndex={10}
-                >
-                    <VStack gap={6} maxW="500px" width="100%">
-                        <Box textAlign="center">
-                            <Heading size="2xl" mb={2}>
-                                🤸 Body Game - Shape Dodger
-                            </Heading>
-                            <Text fontSize="lg" color="gray.600">
-                                Dodge the shapes by moving your body!
-                            </Text>
-                        </Box>
-
-                        <Card.Root p={8} width="100%" bg="white">
-                            <VStack gap={4}>
-                                <Heading size="lg">Enter Your Name</Heading>
-                                <Text textAlign="center" color="gray.600">
-                                    Your name will be used for the leaderboard
-                                </Text>
-                                
-                                <Input
-                                    placeholder="Enter your name"
-                                    value={nameInput}
-                                    onChange={(e) => setNameInput(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleNameSubmit();
-                                        }
-                                    }}
-                                    size="lg"
-                                    autoFocus
-                                />
-                                
-                                <Button 
-                                    colorScheme="blue" 
-                                    size="lg" 
-                                    onClick={handleNameSubmit}
-                                    width="100%"
-                                >
-                                    Continue
-                                </Button>
-
-                                <Button 
-                                    size="lg" 
-                                    onClick={() => window.location.href = '/'}
-                                    width="100%"
-                                    variant="outline"
-                                >
-                                    ← Back to Menu
-                                </Button>
-                            </VStack>
-                        </Card.Root>
-                    </VStack>
-                </Flex>
-            )}
-
             {/* Ready Screen with Video Background */}
             {gameState === 'ready' && (
                 <Flex 
@@ -424,7 +365,7 @@ const BodyGame: React.FC = () => {
                             <VStack gap={4}>
                                 <Heading size="2xl" textAlign="center">Ready to Play?</Heading>
                                 <Badge colorScheme="blue" fontSize="lg" p={2}>
-                                    Player: {playerName}
+                                    Player: {user.username}
                                 </Badge>
                                 <Text textAlign="center" fontSize="lg">
                                     Shapes will appear on screen and blink. Get out of them before they stop blinking!
@@ -480,7 +421,7 @@ const BodyGame: React.FC = () => {
             )}
 
             {/* Game Screen */}
-            {gameState !== 'name-entry' && gameState !== 'ready' && gameState !== 'game-over' && gameState !== 'game-won' && (
+            {gameState !== 'ready' && gameState !== 'game-over' && gameState !== 'game-won' && (
                 <Flex 
                     direction="column" 
                     height="100vh" 
@@ -561,7 +502,7 @@ const BodyGame: React.FC = () => {
                                     {(gameState === 'initial-countdown' || gameState === 'between-countdown') && '⏳ Ready'}
                                 </Text>
                                 <Badge colorScheme={hasCollision ? 'red' : 'green'}>
-                                    {playerName}
+                                    {user.username}
                                 </Badge>
                             </VStack>
                         </Box>
@@ -623,7 +564,7 @@ const BodyGame: React.FC = () => {
                                     Shapes successfully dodged: {currentShapeIndex}/{TOTAL_SHAPES}
                                 </Text>
                                 <Text fontSize="md" color="gray.600">
-                                    Player: {playerName}
+                                    Player: {user.username}
                                 </Text>
                                 <Badge colorScheme="purple" fontSize="md" p={2}>
                                     Level: {currentShapeIndex < 8 ? 'Easy' : currentShapeIndex < 14 ? 'Medium' : 'Hard'}
@@ -669,9 +610,9 @@ const BodyGame: React.FC = () => {
                                         key={entry.rank} 
                                         justify="space-between" 
                                         p={2} 
-                                        bg={entry.name === playerName ? "blue.50" : "gray.50"}
+                                        bg={entry.name === user.username ? "blue.50" : "gray.50"}
                                         borderRadius="md"
-                                        borderWidth={entry.name === playerName ? "2px" : "0"}
+                                        borderWidth={entry.name === user.username ? "2px" : "0"}
                                         borderColor="blue.500"
                                     >
                                         <HStack gap={3}>
@@ -680,7 +621,7 @@ const BodyGame: React.FC = () => {
                                             >
                                                 #{entry.rank}
                                             </Badge>
-                                            <Text fontWeight={entry.name === playerName ? "bold" : "medium"}>
+                                            <Text fontWeight={entry.name === user.username ? "bold" : "medium"}>
                                                 {entry.name}
                                             </Text>
                                         </HStack>
@@ -727,7 +668,7 @@ const BodyGame: React.FC = () => {
                                     You completed all {TOTAL_SHAPES} shapes!
                                 </Text>
                                 <Text fontSize="md" color="gray.600">
-                                    Player: {playerName}
+                                    Player: {user.username}
                                 </Text>
                                 <Badge colorScheme="purple" fontSize="md" p={2}>
                                     🏆 Master Level Achieved! 🏆
@@ -773,9 +714,9 @@ const BodyGame: React.FC = () => {
                                         key={entry.rank} 
                                         justify="space-between" 
                                         p={2} 
-                                        bg={entry.name === playerName ? "blue.50" : "gray.50"}
+                                        bg={entry.name === user.username ? "blue.50" : "gray.50"}
                                         borderRadius="md"
-                                        borderWidth={entry.name === playerName ? "2px" : "0"}
+                                        borderWidth={entry.name === user.username ? "2px" : "0"}
                                         borderColor="blue.500"
                                     >
                                         <HStack gap={3}>
@@ -784,7 +725,7 @@ const BodyGame: React.FC = () => {
                                             >
                                                 #{entry.rank}
                                             </Badge>
-                                            <Text fontWeight={entry.name === playerName ? "bold" : "medium"}>
+                                            <Text fontWeight={entry.name === user.username ? "bold" : "medium"}>
                                                 {entry.name}
                                             </Text>
                                         </HStack>
