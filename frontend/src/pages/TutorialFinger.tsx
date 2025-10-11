@@ -13,7 +13,7 @@ import {
     Icon
 } from "@chakra-ui/react";
 import { useNavigate } from 'react-router-dom';
-import { FiSkipForward, FiChevronLeft, FiChevronRight, FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
 import { useEffect, useState } from "react";
 
@@ -26,7 +26,8 @@ interface TutorialSlide {
 
 const Tutorial: React.FC = () => {
     const navigate = useNavigate();
-    const { isPlaying, volume, play, pause, toggle, setVolume } = useMusic();
+
+    const { setVolumePercentage } = useMusic();
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [slideProgress, setSlideProgress] = useState(0);
@@ -43,7 +44,7 @@ const Tutorial: React.FC = () => {
                 return () => clearTimeout(timer);
             } else {
                 // Countdown finished, navigate to game
-                pause
+                setVolumePercentage(80);
                 navigate('/game-1');
             }
         }
@@ -132,7 +133,7 @@ const Tutorial: React.FC = () => {
     const isLastSlide = currentSlideIndex === tutorialSlides.length - 1;
 
     const handleSkip = () => {
-        pause()
+        setVolumePercentage(80);
         navigate('/game-1');
     };
 
@@ -171,18 +172,7 @@ const Tutorial: React.FC = () => {
                                     {currentSlideIndex + 1}/{tutorialSlides.length}
                                 </Text>
                                 
-                                {/* Music Toggle Button */}
-                                <Button
-                                    variant="outline"
-                                    colorPalette={isPlaying ? "green" : "gray"}
-                                    size="2xl"
-                                    onClick={toggle}
-                                    title={isPlaying ? "Pause Music" : "Play Music"}
-                                >
-                                    <Icon fontSize="2xl">
-                                        {isPlaying ? <FiVolume2 /> : <FiVolumeX />}
-                                    </Icon>
-                                </Button>
+                                
                                 
                                 <Button
                                     variant="solid"
