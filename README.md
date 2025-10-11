@@ -40,7 +40,7 @@ The backend code is located in the `/backend` directory. You can start it indepe
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 

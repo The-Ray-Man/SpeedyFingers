@@ -10,9 +10,12 @@ const INITIAL_COUNTDOWN = 5; // 5 seconds before first shape
 const BETWEEN_COUNTDOWN = 4; // 4 seconds between shapes
 const SHAPE_BLINK_DURATION = 5000; // 5 seconds of blinking (increased from 3)
 const SHAPE_STILL_DURATION = 2000; // 2 seconds of still (check collision)
-const BLINK_INTERVAL_SLOW = 300; // Slow blink: 300ms (faster)
-const BLINK_INTERVAL_FAST = 150; // Fast blink: 150ms (faster)
+const OPACITY_INTERVAL_SLOW = 300; // Slow opacity fade: 300ms
+const OPACITY_INTERVAL_FAST = 150; // Fast opacity fade: 150ms
 const FAST_BLINK_START = 3000; // Start fast blinking after 3 seconds
+const OPACITY_MIN = 0.2; // Minimum opacity (always visible)
+const OPACITY_MAX = 0.7; // Maximum opacity
+const OPACITY_STILL = 0.5; // Opacity during still phase
 const TOTAL_SHAPES = 20;
 
 type GameState = 'idle' | 'initial-countdown' | 'between-countdown' | 'shape-blinking' | 'shape-still' | 'game-over' | 'game-won';
@@ -23,7 +26,7 @@ const BodyGame: React.FC = () => {
     const [shapes, setShapes] = useState<Shape[]>([]);
     const [currentShapeIndex, setCurrentShapeIndex] = useState<number>(0);
     const [currentShape, setCurrentShape] = useState<Shape | null>(null);
-    const [isShapeVisible, setIsShapeVisible] = useState<boolean>(false);
+    const [shapeOpacity, setShapeOpacity] = useState<number>(0);
     const [hasCollision, setHasCollision] = useState<boolean>(false);
     const [collisionDuringStill, setCollisionDuringStill] = useState<boolean>(false);
     
@@ -42,7 +45,7 @@ const BodyGame: React.FC = () => {
         setCurrentShapeIndex(0);
         setGameState('idle');
         setCurrentShape(null);
-        setIsShapeVisible(false);
+        setShapeOpacity(0);
         setHasCollision(false);
         setCollisionDuringStill(false);
     }, []);
@@ -114,35 +117,36 @@ const BodyGame: React.FC = () => {
 
             const shape = shapes[currentShapeIndex];
             setCurrentShape(shape);
-            setIsShapeVisible(true);
+            setShapeOpacity(OPACITY_MAX);
             setHasCollision(false);
             setCollisionDuringStill(false);
 
             const shapeStartTime = Date.now();
-            let blinkState = true;
-            let currentBlinkInterval = BLINK_INTERVAL_SLOW;
+            let opacityIncreasing = false; // Start by fading down
+            let currentOpacityInterval = OPACITY_INTERVAL_SLOW;
 
-            // Blinking logic
-            const startBlinking = () => {
+            // Opacity fade logic (always visible, fades between min and max)
+            const startOpacityFade = () => {
                 blinkIntervalRef.current = window.setInterval(() => {
                     const elapsed = Date.now() - shapeStartTime;
                     
-                    // Switch to fast blinking after threshold
-                    if (elapsed > FAST_BLINK_START && currentBlinkInterval === BLINK_INTERVAL_SLOW) {
-                        currentBlinkInterval = BLINK_INTERVAL_FAST;
+                    // Switch to fast fading after threshold
+                    if (elapsed > FAST_BLINK_START && currentOpacityInterval === OPACITY_INTERVAL_SLOW) {
+                        currentOpacityInterval = OPACITY_INTERVAL_FAST;
                         if (blinkIntervalRef.current) {
                             clearInterval(blinkIntervalRef.current);
                         }
-                        startBlinking();
+                        startOpacityFade();
                         return;
                     }
                     
-                    blinkState = !blinkState;
-                    setIsShapeVisible(blinkState);
-                }, currentBlinkInterval);
+                    // Toggle between fading in and out
+                    opacityIncreasing = !opacityIncreasing;
+                    setShapeOpacity(opacityIncreasing ? OPACITY_MAX : OPACITY_MIN);
+                }, currentOpacityInterval);
             };
 
-            startBlinking();
+            startOpacityFade();
 
             // After blinking duration, enter still phase
             timeoutRef.current = window.setTimeout(() => {
@@ -151,8 +155,8 @@ const BodyGame: React.FC = () => {
                     blinkIntervalRef.current = null;
                 }
                 
-                // Shape is now still and fully visible
-                setIsShapeVisible(true);
+                // Shape is now still with fixed opacity
+                setShapeOpacity(OPACITY_STILL);
                 setCollisionDuringStill(false); // Reset collision flag
                 setGameState('shape-still');
             }, SHAPE_BLINK_DURATION);
@@ -169,7 +173,7 @@ const BodyGame: React.FC = () => {
                     // Success - move to next shape
                     const nextIndex = currentShapeIndex + 1;
                     setCurrentShapeIndex(nextIndex);
-                    setIsShapeVisible(false);
+                    setShapeOpacity(0);
                     setCurrentShape(null);
                     
                     // Check if more shapes remain
@@ -245,7 +249,7 @@ const BodyGame: React.FC = () => {
                     <VideoComponent 
                         scoreTrackable={gameState !== 'idle'}
                         currentShape={currentShape}
-                        isShapeVisible={isShapeVisible}
+                        shapeOpacity={shapeOpacity}
                         onCollisionDetected={handleCollisionDetected}
                         showControls={false}
                     />

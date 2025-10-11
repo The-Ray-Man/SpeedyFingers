@@ -11,7 +11,7 @@ interface VideoComponentProps {
   scoreTrackable: boolean;
   onScoreIncrement?: (incrementValue: number) => void;
   currentShape?: Shape | null;
-  isShapeVisible?: boolean;
+  shapeOpacity?: number;
   onCollisionDetected?: (hasCollision: boolean) => void;
   showControls?: boolean;
 }
@@ -20,7 +20,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
   scoreTrackable, 
   onScoreIncrement,
   currentShape,
-  isShapeVisible = false,
+  shapeOpacity = 0,
   onCollisionDetected,
   showControls = false,
 }) => {
@@ -147,7 +147,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
 
     // Collision detection
     useEffect(() => {
-      if (!currentShape || !isShapeVisible || !overlayCanvasRef.current || currentPoses.length === 0) {
+      if (!currentShape || shapeOpacity === 0 || !overlayCanvasRef.current || currentPoses.length === 0) {
         setHasCollision(false);
         return;
       }
@@ -162,7 +162,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
 
       setHasCollision(collision);
       onCollisionDetected?.(collision);
-    }, [currentPoses, currentShape, isShapeVisible, onCollisionDetected]);
+    }, [currentPoses, currentShape, shapeOpacity, onCollisionDetected]);
 
     // Capture + send frames periodically (kept for future use)
     useEffect(() => {
@@ -384,12 +384,12 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
             }}
           />
           {/* Shape collision overlay */}
-          {currentShape && overlayCanvasRef.current && (
+          {currentShape && overlayCanvasRef.current && shapeOpacity > 0 && (
             <ShapeOverlay
               shape={currentShape}
-              isVisible={isShapeVisible}
+              isVisible={true}
               hasCollision={hasCollision}
-              opacity={0.5}
+              opacity={shapeOpacity}
               canvasWidth={overlayCanvasRef.current.width || 640}
               canvasHeight={overlayCanvasRef.current.height || 480}
             />
