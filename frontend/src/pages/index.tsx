@@ -10,6 +10,8 @@ import {
   Card,
   Center,
 } from "@chakra-ui/react";
+
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import { 
   getSinglePlayerLeaderboard, 
@@ -105,6 +107,7 @@ const App = () => {
   const [singlePlayerLeaderboard, setSinglePlayerLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [multiPlayerLeaderboard, setMultiPlayerLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Fetch leaderboards from backend
   const fetchLeaderboards = async () => {
@@ -138,6 +141,7 @@ const App = () => {
   }, []);
 
   const handleSinglePlayer = () => {
+
     window.location.href = "/game-1";
   };
 
