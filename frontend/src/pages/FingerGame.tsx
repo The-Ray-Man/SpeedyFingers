@@ -16,19 +16,21 @@ import { Hands, type Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { HAND_CONNECTIONS } from "@mediapipe/hands";
-import { getRandomSymbol, calculatePoints, type GameSymbol } from "../gameSymbols";
+import { getRandomGesture, matchGesture, type GestureDefinition } from "../gestureApi";
+import { landmarksToArray } from "../advancedGestureRecognition";
 import { submitScore } from "../leaderboardApi";
-import { calculateAdvancedGestureSimilarity } from "../advancedGestureRecognition";
+import { Toaster, toaster } from "@/components/ui/toaster";
 
 const GAME_DURATION = 60; // 60 seconds
-const SIMILARITY_THRESHOLD = 0.6; // 60% similarity to accept
+const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
-const FingerGame: React.FC = () => {
+const PlayMode: React.FC = () => {
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState("");
-  const [currentSymbol, setCurrentSymbol] = useState<GameSymbol | null>(null);
+  const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
+  const [currentDefinition, setCurrentDefinition] = useState<GestureDefinition | null>(null);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [score, setScore] = useState(0);
   const [symbolsCompleted, setSymbolsCompleted] = useState(0);
@@ -36,6 +38,7 @@ const FingerGame: React.FC = () => {
   const [handDetected, setHandDetected] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -43,8 +46,13 @@ const FingerGame: React.FC = () => {
   const handsRef = useRef<Hands | null>(null);
   const cameraRef = useRef<Camera | null>(null);
   const gameTimerRef = useRef<number | null>(null);
-  const gameStateRef = useRef({ gameStarted: false, gameOver: false, currentSymbol: null as GameSymbol | null });
-  const matchCooldownRef = useRef<boolean>(false); // Prevent multiple rapid matches
+  const gameStateRef = useRef({ 
+    gameStarted: false, 
+    gameOver: false, 
+    currentSymbol: null as string | null 
+  });
+  const matchCooldownRef = useRef<boolean>(false);
+  const currentLandmarksRef = useRef<any>(null);
 
   // Initialize MediaPipe Hands
   useEffect(() => {
@@ -59,7 +67,7 @@ const FingerGame: React.FC = () => {
         });
 
         hands.setOptions({
-          maxNumHands: 1,
+          maxNumHands: 2,
           modelComplexity: 1,
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5,
@@ -69,7 +77,6 @@ const FingerGame: React.FC = () => {
         
         handsRef.current = hands;
         
-        // Wait a moment to ensure the model is fully loaded
         await new Promise(resolve => setTimeout(resolve, 100));
         
         setIsModelReady(true);
@@ -92,13 +99,13 @@ const FingerGame: React.FC = () => {
     };
   }, []);
 
-  // Update game state ref whenever state changes
+  // Update game state ref
   useEffect(() => {
     gameStateRef.current = { gameStarted, gameOver, currentSymbol };
   }, [gameStarted, gameOver, currentSymbol]);
 
   // Handle hand detection results
-  const onHandsResults = (results: Results) => {
+  const onHandsResults = async (results: Results) => {
     if (!canvasRef.current) return;
 
     const canvasCtx = canvasRef.current.getContext("2d");
@@ -113,12 +120,12 @@ const FingerGame: React.FC = () => {
       canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
     }
 
-    // Get current game state from ref (to avoid stale closure)
     const { gameStarted: isGameActive, gameOver: isGameOver, currentSymbol: symbol } = gameStateRef.current;
 
     // Draw hand landmarks
-    if (results.multiHandLandmarks) {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       setHandDetected(true);
+      currentLandmarksRef.current = results.multiHandLandmarks;
       
       for (const landmarks of results.multiHandLandmarks) {
         drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
@@ -132,41 +139,46 @@ const FingerGame: React.FC = () => {
         });
       }
 
-      // Calculate similarity using advanced gesture recognition
-      if (symbol) {
-        const calculatedSimilarity = calculateAdvancedGestureSimilarity(
-          results.multiHandLandmarks,
-          symbol.display
-        );
-        setSimilarity(calculatedSimilarity);
+      // Calculate similarity during active game
+      if (isGameActive && !isGameOver && symbol && !matchCooldownRef.current) {
+        try {
+          const landmarksArray = results.multiHandLandmarks.map((hand) => landmarksToArray(hand));
+          
+          const matchResponse = await matchGesture({
+            symbol: symbol,
+            landmarks: landmarksArray,
+          });
 
-        // Auto-accept if similarity is high enough (with cooldown to prevent rapid matches)
-        if (isGameActive && !isGameOver && calculatedSimilarity >= SIMILARITY_THRESHOLD && !matchCooldownRef.current) {
-          console.log(`Match detected! Similarity: ${(calculatedSimilarity * 100).toFixed(1)}% for symbol: ${symbol.display}`);
-          matchCooldownRef.current = true;
-          
-          // Call handleSymbolMatch with the current symbol
-          handleSymbolMatch(calculatedSimilarity, symbol);
-          
-          // Reset cooldown after 1.5 seconds
-          setTimeout(() => {
-            matchCooldownRef.current = false;
-          }, 1500);
+          setSimilarity(matchResponse.similarity);
+
+          // Auto-accept if similarity is high enough
+          if (matchResponse.similarity >= SIMILARITY_THRESHOLD) {
+            console.log(`Match detected! Similarity: ${(matchResponse.similarity * 100).toFixed(1)}%`);
+            matchCooldownRef.current = true;
+            
+            handleSymbolMatch(matchResponse.similarity);
+            
+            // Reset cooldown
+            setTimeout(() => {
+              matchCooldownRef.current = false;
+            }, 1500);
+          }
+        } catch (error) {
+          console.error("Error matching gesture:", error);
         }
       }
     } else {
       setHandDetected(false);
+      currentLandmarksRef.current = null;
       setSimilarity(0);
     }
 
     canvasCtx.restore();
   };
 
-  // Handle when player successfully matches a symbol
-  const handleSymbolMatch = (matchSimilarity: number, matchedSymbol: GameSymbol) => {
-    console.log(`Symbol matched! ${matchedSymbol.display} - Similarity: ${(matchSimilarity * 100).toFixed(1)}%, Points: ${calculatePoints(matchSimilarity, matchedSymbol.difficulty)}`);
-    
-    const points = calculatePoints(matchSimilarity, matchedSymbol.difficulty);
+  // Handle successful match
+  const handleSymbolMatch = (matchSimilarity: number) => {
+    const points = Math.round(matchSimilarity * 300); // Up to 300 points per match
     
     setScore((prev) => {
       const newScore = prev + points;
@@ -180,11 +192,35 @@ const FingerGame: React.FC = () => {
       return newCount;
     });
 
+    toaster.create({
+      title: "Match!",
+      description: `+${points} points`,
+      type: "success",
+    });
+
     // Load next symbol
-    const nextSymbol = getRandomSymbol();
-    console.log(`Loading next symbol: ${nextSymbol.display}`);
-    setCurrentSymbol(nextSymbol);
-    setSimilarity(0);
+    loadNextSymbol();
+  };
+
+  // Load a random symbol
+  const loadNextSymbol = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getRandomGesture();
+      setCurrentSymbol(response.symbol);
+      setCurrentDefinition(response.definition);
+      setSimilarity(0);
+    } catch (error) {
+      console.error("Failed to load random gesture:", error);
+      toaster.create({
+        title: "Error",
+        description: "No gestures available. Please record some gestures in Dev Mode first!",
+        type: "error",
+      });
+      endGame();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Start the game
@@ -192,12 +228,20 @@ const FingerGame: React.FC = () => {
     console.log("Start game clicked");
     
     if (!playerName.trim()) {
-      alert("Please enter your name!");
+      toaster.create({
+        title: "Error",
+        description: "Please enter your name!",
+        type: "error",
+      });
       return;
     }
 
     if (!handsRef.current) {
-      alert("Hand detection model is still loading. Please wait a moment and try again.");
+      toaster.create({
+        title: "Error",
+        description: "Hand detection model is still loading. Please wait.",
+        type: "error",
+      });
       return;
     }
 
@@ -205,7 +249,6 @@ const FingerGame: React.FC = () => {
     try {
       console.log("Requesting camera access...");
       
-      // Request camera permissions first
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: 640, 
@@ -215,19 +258,15 @@ const FingerGame: React.FC = () => {
       
       console.log("Camera access granted");
       
-      // Wait for video element to be ready
       if (!videoRef.current) {
-        console.error("Video element not found!");
         throw new Error("Video element not initialized");
       }
       
-      // Set up video element
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       
       console.log("Video playing");
 
-      // Initialize Camera utility
       const camera = new Camera(videoRef.current, {
         onFrame: async () => {
           if (handsRef.current && videoRef.current) {
@@ -253,10 +292,11 @@ const FingerGame: React.FC = () => {
       setScore(0);
       setSymbolsCompleted(0);
       setTimeLeft(GAME_DURATION);
-      const firstSymbol = getRandomSymbol();
-      setCurrentSymbol(firstSymbol);
       
-      console.log("Game initialized with symbol:", firstSymbol);
+      // Load first symbol
+      await loadNextSymbol();
+      
+      console.log("Game initialized");
 
       // Start timer
       gameTimerRef.current = window.setInterval(() => {
@@ -287,7 +327,11 @@ const FingerGame: React.FC = () => {
         }
       }
       
-      alert(errorMessage);
+      toaster.create({
+        title: "Camera Error",
+        description: errorMessage,
+        type: "error",
+      });
       setCameraError(errorMessage);
     }
   };
@@ -306,7 +350,7 @@ const FingerGame: React.FC = () => {
     setGameOver(true);
   };
 
-  // Submit score to leaderboard
+  // Submit score
   const handleSubmitScore = async () => {
     try {
       await submitScore({
@@ -314,44 +358,56 @@ const FingerGame: React.FC = () => {
         score: score,
         symbols: symbolsCompleted,
         gameMode: "single",
+        gameType: "finger",
       });
 
-      alert("Score submitted successfully! Check the leaderboard on the home page.");
-      window.location.href = "/";
+      toaster.create({
+        title: "Success!",
+        description: "Score submitted successfully!",
+        type: "success",
+      });
+      
+      setTimeout(() => {
+        window.location.href = "/game-1";
+      }, 2000);
     } catch (error) {
       console.error("Failed to submit score:", error);
-      alert("Failed to submit score. Please try again.");
+      toaster.create({
+        title: "Error",
+        description: "Failed to submit score. Please try again.",
+        type: "error",
+      });
     }
   };
 
-  // Manual skip button
+  // Manual skip
   const handleSkip = () => {
     if (gameStarted && !gameOver) {
-      setCurrentSymbol(getRandomSymbol());
-      setSimilarity(0);
+      loadNextSymbol();
     }
   };
 
   return (
     <Container maxW="container.xl" py={8}>
+      <Toaster />
       <VStack gap={6} align="stretch">
         {/* Header */}
         <Box textAlign="center">
           <Heading size="2xl" mb={2}>
-            Single Player Mode
+            🎮 Play Mode - Gesture Game
           </Heading>
           <Text fontSize="lg" color="gray.600">
-            Match LaTeX symbols with your hand gestures!
+            Match the gestures you've recorded!
           </Text>
         </Box>
 
-        {/* Game Setup - Before game starts */}
+        {/* Game Setup */}
         {!gameStarted && !gameOver && (
           <Card.Root p={8} maxW="md" mx="auto">
             <VStack gap={4}>
               <Heading size="lg">Ready to Play?</Heading>
               <Text textAlign="center">
-                Use your hands to recreate the LaTeX symbols shown on screen.
+                Recreate the gestures shown on screen.
                 Match as many as you can in {GAME_DURATION} seconds!
               </Text>
               
@@ -390,7 +446,7 @@ const FingerGame: React.FC = () => {
           </Card.Root>
         )}
 
-        {/* Hidden video and canvas elements - always rendered so refs exist */}
+        {/* Camera Feed */}
         <Box position="relative" mx="auto" display={gameStarted && !gameOver ? "block" : "none"}>
           <video
             ref={videoRef}
@@ -410,7 +466,6 @@ const FingerGame: React.FC = () => {
             }}
           />
           
-          {/* Hand Detection Indicator */}
           <Box position="absolute" top={4} right={4}>
             <Badge colorScheme={handDetected ? "green" : "red"}>
               {handDetected ? "✓ Hand Detected" : "✗ No Hand"}
@@ -452,24 +507,21 @@ const FingerGame: React.FC = () => {
             </HStack>
 
             {/* Current Symbol */}
-            {currentSymbol && (
+            {currentSymbol && currentDefinition && (
               <Card.Root p={6} bg="blue.50">
                 <VStack gap={3}>
                   <HStack>
                     <Text fontSize="lg" fontWeight="bold">
-                      Current Symbol:
+                      Match this symbol:
                     </Text>
-                    <Badge colorScheme={
-                      currentSymbol.difficulty === "easy" ? "green" :
-                      currentSymbol.difficulty === "medium" ? "yellow" : "red"
-                    }>
-                      {currentSymbol.difficulty.toUpperCase()}
+                    <Badge colorScheme="blue">
+                      {currentDefinition.variants.length} variant{currentDefinition.variants.length !== 1 ? 's' : ''}
                     </Badge>
                   </HStack>
-                  <Heading size="4xl">{currentSymbol.display}</Heading>
-                  <Text fontSize="md" color="gray.700">
-                    {currentSymbol.description}
-                  </Text>
+                  <Heading size="6xl">{currentSymbol}</Heading>
+                  {isLoading && (
+                    <Text fontSize="sm" color="gray.600">Loading...</Text>
+                  )}
                   <Button size="sm" onClick={handleSkip} colorScheme="gray">
                     Skip Symbol
                   </Button>
@@ -528,14 +580,21 @@ const FingerGame: React.FC = () => {
                 Play Again
               </Button>
               <Button size="lg" onClick={() => (window.location.href = "/")} w="full">
-                Back to Home
+                Back to Menu
               </Button>
             </VStack>
           </Card.Root>
+        )}
+
+        {/* Back button */}
+        {!gameStarted && !gameOver && (
+          <Button onClick={() => (window.location.href = "/")} size="lg">
+            ← Back to Menu
+          </Button>
         )}
       </VStack>
     </Container>
   );
 };
 
-export default FingerGame;
+export default PlayMode;

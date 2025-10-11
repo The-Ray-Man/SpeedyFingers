@@ -11,6 +11,7 @@ import FooterBar from "./footerBar";
 
 import ChangeUser from "@/pages/ChangeUser";
 import { useUser } from "@/context/UserContext";
+import DevMode from "./pages/DevMode";
 
 const RequireUserLayout: React.FC = () => {
   const { user } = useUser();
@@ -30,6 +31,7 @@ const App = () => {
         <Routes>
           {/* Public route(s) */}
           <Route path="/changeuser" element={<ChangeUser />} />
+          <Route path="/dev-mode" element={<DevMode />} />
 
           {/* Protected routes under a single guard */}
           <Route element={<RequireUserLayout />}>
