@@ -3,63 +3,228 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Text, HStack, Button, Box, Flex } from "@chakra-ui/react";
 import VideoComponent from '@/components/game_components/VideoComponent';
 import ProgressBar from '@/components/game_components/ProgressBar';
-import ShapeWrapper from '@/components/game_components/ShapeWrapper';
+import type { Shape } from '@/components/game_components/ShapeOverlay';
+import { generateShapeSequence } from '@/utils/collisionDetection';
 
-const GAME_DURATION = 60; // 60 seconds game duration
+const INITIAL_COUNTDOWN = 5; // 5 seconds before first shape
+const BETWEEN_COUNTDOWN = 4; // 4 seconds between shapes
+const SHAPE_BLINK_DURATION = 5000; // 5 seconds of blinking (increased from 3)
+const SHAPE_STILL_DURATION = 2000; // 2 seconds of still (check collision)
+const OPACITY_INTERVAL_SLOW = 300; // Slow opacity fade: 300ms
+const OPACITY_INTERVAL_FAST = 150; // Fast opacity fade: 150ms
+const FAST_BLINK_START = 3000; // Start fast blinking after 3 seconds
+const OPACITY_MIN = 0.2; // Minimum opacity (always visible)
+const OPACITY_MAX = 0.7; // Maximum opacity
+const OPACITY_STILL = 0.5; // Opacity during still phase
+const TOTAL_SHAPES = 20;
 
+type GameState = 'idle' | 'initial-countdown' | 'between-countdown' | 'shape-blinking' | 'shape-still' | 'game-over' | 'game-won';
 
 const BodyGame: React.FC = () => {
-    const [score, setScore] = useState<number>(0);
-    const [isScoreTrackable, setIsScoreTrackable] = useState<boolean>(false);
-    const [elapsed, setElapsed] = useState<number>(0); // seconds
-    const [progress, setProgress] = useState<number>(0); // percentage 0-100
-    const intervalRef = useRef<number | null>(null);
-    const startTimeRef = useRef<number>(0); // Store the start time
+    const [gameState, setGameState] = useState<GameState>('idle');
+    const [countdown, setCountdown] = useState<number>(0);
+    const [shapes, setShapes] = useState<Shape[]>([]);
+    const [currentShapeIndex, setCurrentShapeIndex] = useState<number>(0);
+    const [currentShape, setCurrentShape] = useState<Shape | null>(null);
+    const [shapeOpacity, setShapeOpacity] = useState<number>(0);
+    const [hasCollision, setHasCollision] = useState<boolean>(false);
+    const [collisionDuringStill, setCollisionDuringStill] = useState<boolean>(false);
+    
+    const blinkIntervalRef = useRef<number | null>(null);
+    const timeoutRef = useRef<number | null>(null);
+    const countdownIntervalRef = useRef<number | null>(null);
 
-    const handleScoreIncrement = useCallback(() => {
-        setScore((prevScore) => prevScore + 1);
-    }, []); // Empty dependency array since it only uses setScore which is stable
+    const handleCollisionDetected = useCallback((collision: boolean) => {
+        setHasCollision(collision);
+    }, []);
 
-    // Timer logic
+    // Initialize game
+    const initializeGame = useCallback(() => {
+        const shapeSequence = generateShapeSequence(TOTAL_SHAPES);
+        setShapes(shapeSequence);
+        setCurrentShapeIndex(0);
+        setGameState('idle');
+        setCurrentShape(null);
+        setShapeOpacity(0);
+        setHasCollision(false);
+        setCollisionDuringStill(false);
+    }, []);
+
+    // Start the game
+    const handleStartGame = useCallback(() => {
+        if (shapes.length === 0) {
+            const shapeSequence = generateShapeSequence(TOTAL_SHAPES);
+            setShapes(shapeSequence);
+        }
+        setCurrentShapeIndex(0);
+        setGameState('initial-countdown');
+        setCountdown(INITIAL_COUNTDOWN);
+    }, [shapes.length]);
+
+    // Handle countdown
     useEffect(() => {
-        if (isScoreTrackable) {
-            startTimeRef.current = Date.now() - elapsed * 1000; // resume offset
-            intervalRef.current = window.setInterval(() => {
-                const newElapsed = (Date.now() - startTimeRef.current) / 1000;
-                setElapsed(newElapsed);
-                setProgress(Math.min((newElapsed / GAME_DURATION) * 100, 100));
+        if (gameState !== 'initial-countdown' && gameState !== 'between-countdown') {
+            if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
+            }
+            return;
+        }
 
-                if (newElapsed >= GAME_DURATION) {
-                    clearInterval(intervalRef.current!);
-                    setIsScoreTrackable(false);
+        countdownIntervalRef.current = window.setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    if (countdownIntervalRef.current) {
+                        clearInterval(countdownIntervalRef.current);
+                        countdownIntervalRef.current = null;
+                    }
+                    // Move to shape blinking
+                    setGameState('shape-blinking');
+                    return 0;
                 }
-            }, 100); // Update every 100ms
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+            }
+        };
+    }, [gameState]);
+
+    // Handle shape blinking and still phases
+    useEffect(() => {
+        if (gameState !== 'shape-blinking' && gameState !== 'shape-still') {
+            if (blinkIntervalRef.current) {
+                clearInterval(blinkIntervalRef.current);
+                blinkIntervalRef.current = null;
+            }
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            return;
+        }
+
+        // Handle shape-blinking state
+        if (gameState === 'shape-blinking') {
+            // Check if we've completed all shapes
+            if (currentShapeIndex >= shapes.length) {
+                setGameState('game-won');
+                return;
+            }
+
+            const shape = shapes[currentShapeIndex];
+            setCurrentShape(shape);
+            setShapeOpacity(OPACITY_MAX);
+            setHasCollision(false);
+            setCollisionDuringStill(false);
+
+            const shapeStartTime = Date.now();
+            let opacityIncreasing = false; // Start by fading down
+            let currentOpacityInterval = OPACITY_INTERVAL_SLOW;
+
+            // Opacity fade logic (always visible, fades between min and max)
+            const startOpacityFade = () => {
+                blinkIntervalRef.current = window.setInterval(() => {
+                    const elapsed = Date.now() - shapeStartTime;
+                    
+                    // Switch to fast fading after threshold
+                    if (elapsed > FAST_BLINK_START && currentOpacityInterval === OPACITY_INTERVAL_SLOW) {
+                        currentOpacityInterval = OPACITY_INTERVAL_FAST;
+                        if (blinkIntervalRef.current) {
+                            clearInterval(blinkIntervalRef.current);
+                        }
+                        startOpacityFade();
+                        return;
+                    }
+                    
+                    // Toggle between fading in and out
+                    opacityIncreasing = !opacityIncreasing;
+                    setShapeOpacity(opacityIncreasing ? OPACITY_MAX : OPACITY_MIN);
+                }, currentOpacityInterval);
+            };
+
+            startOpacityFade();
+
+            // After blinking duration, enter still phase
+            timeoutRef.current = window.setTimeout(() => {
+                if (blinkIntervalRef.current) {
+                    clearInterval(blinkIntervalRef.current);
+                    blinkIntervalRef.current = null;
+                }
+                
+                // Shape is now still with fixed opacity
+                setShapeOpacity(OPACITY_STILL);
+                setCollisionDuringStill(false); // Reset collision flag
+                setGameState('shape-still');
+            }, SHAPE_BLINK_DURATION);
+        }
+
+        // Handle shape-still state (evaluation phase)
+        if (gameState === 'shape-still') {
+            // After still duration, check final collision
+            timeoutRef.current = window.setTimeout(() => {
+                if (collisionDuringStill) {
+                    // Collision during still phase - game over
+                    setGameState('game-over');
+                } else {
+                    // Success - move to next shape
+                    const nextIndex = currentShapeIndex + 1;
+                    setCurrentShapeIndex(nextIndex);
+                    setShapeOpacity(0);
+                    setCurrentShape(null);
+                    
+                    // Check if more shapes remain
+                    if (nextIndex >= shapes.length) {
+                        setGameState('game-won');
+                    } else {
+                        setGameState('between-countdown');
+                        setCountdown(BETWEEN_COUNTDOWN);
+                    }
+                }
+            }, SHAPE_STILL_DURATION);
         }
 
         return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
+            if (blinkIntervalRef.current) {
+                clearInterval(blinkIntervalRef.current);
+            }
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
             }
         };
-    }, [isScoreTrackable]);
+    }, [gameState, currentShapeIndex, shapes, collisionDuringStill]);
 
-    const handleStartScoring = () => {
-        setIsScoreTrackable(true);
-    };
-
-    const handleStopScoring = () => {
-        setIsScoreTrackable(false);
-    };
-
-    const handleReset = () => {
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
+    // Track collisions during still phase - ANY collision = fail
+    useEffect(() => {
+        if (gameState === 'shape-still') {
+            if (hasCollision && !collisionDuringStill) {
+                console.log('Collision detected during evaluation phase!');
+                setCollisionDuringStill(true);
+            }
         }
-        setScore(0);
-        setElapsed(0);
-        setProgress(0);
-        setIsScoreTrackable(false);
-    };
+    }, [gameState, hasCollision, collisionDuringStill]);
+
+    const handleReset = useCallback(() => {
+        if (blinkIntervalRef.current) {
+            clearInterval(blinkIntervalRef.current);
+        }
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+        }
+        initializeGame();
+    }, [initializeGame]);
+
+    // Initialize on mount
+    useEffect(() => {
+        initializeGame();
+    }, [initializeGame]);
+
     return (
         <Flex 
             direction="column" 
@@ -82,8 +247,11 @@ const BodyGame: React.FC = () => {
                     zIndex={0}
                 >
                     <VideoComponent 
-                        scoreTrackable={isScoreTrackable}
-                        onScoreIncrement={handleScoreIncrement}
+                        scoreTrackable={gameState !== 'idle'}
+                        currentShape={currentShape}
+                        shapeOpacity={shapeOpacity}
+                        onCollisionDetected={handleCollisionDetected}
+                        showControls={false}
                     />
                 </Box>
 
@@ -95,20 +263,115 @@ const BodyGame: React.FC = () => {
                     width="100%"
                 >
                     <ProgressBar 
-                        progress={progress}
-                        timeRemaining={`${Math.max(GAME_DURATION - elapsed, 0).toFixed(1)}s`}
+                        progress={(currentShapeIndex / TOTAL_SHAPES) * 100}
+                        timeRemaining={`Shape ${currentShapeIndex + 1}/${TOTAL_SHAPES}`}
                     />
                 </Box>
 
-                {/* Shape wrapper in bottom left */}
-                <Box 
-                    position="absolute" 
-                    bottom={4} 
-                    left={4}
-                    zIndex={10}
-                >
-                    <ShapeWrapper text="\sigma" />
-                </Box>
+                {/* Countdown overlay */}
+                {(gameState === 'initial-countdown' || gameState === 'between-countdown') && (
+                    <Box
+                        position="absolute"
+                        top="50%"
+                        left="50%"
+                        transform="translate(-50%, -50%)"
+                        zIndex={20}
+                        bg="rgba(0, 0, 0, 0.8)"
+                        p={8}
+                        borderRadius="lg"
+                        textAlign="center"
+                    >
+                        <Text fontSize="6xl" fontWeight="bold" color="white">
+                            {countdown}
+                        </Text>
+                        <Text fontSize="xl" color="white" mt={4}>
+                            {gameState === 'initial-countdown' ? 'Get Ready!' : 'Next Shape!'}
+                        </Text>
+                    </Box>
+                )}
+
+                {/* Game Over overlay */}
+                {gameState === 'game-over' && (
+                    <Box
+                        position="absolute"
+                        top="50%"
+                        left="50%"
+                        transform="translate(-50%, -50%)"
+                        zIndex={20}
+                        bg="rgba(255, 0, 0, 0.9)"
+                        p={8}
+                        borderRadius="lg"
+                        textAlign="center"
+                        minWidth="400px"
+                    >
+                        <Text fontSize="4xl" fontWeight="bold" color="white" mb={4}>
+                            Game Over!
+                        </Text>
+                        <Text fontSize="xl" color="white" mb={4}>
+                            Collision detected during evaluation phase!
+                        </Text>
+                        <Text fontSize="3xl" fontWeight="bold" color="white" mb={2}>
+                            Score: {currentShapeIndex}
+                        </Text>
+                        <Text fontSize="lg" color="white">
+                            Shapes successfully dodged: {currentShapeIndex}/{TOTAL_SHAPES}
+                        </Text>
+                        <Text fontSize="md" color="whiteAlpha.800" mt={4}>
+                            You reached difficulty level: {currentShapeIndex < 8 ? 'Easy' : currentShapeIndex < 16 ? 'Medium' : 'Hard'}
+                        </Text>
+                    </Box>
+                )}
+
+                {/* Game Won overlay */}
+                {gameState === 'game-won' && (
+                    <Box
+                        position="absolute"
+                        top="50%"
+                        left="50%"
+                        transform="translate(-50%, -50%)"
+                        zIndex={20}
+                        bg="rgba(0, 255, 0, 0.9)"
+                        p={8}
+                        borderRadius="lg"
+                        textAlign="center"
+                        minWidth="400px"
+                    >
+                        <Text fontSize="4xl" fontWeight="bold" color="white" mb={4}>
+                            🎉 Perfect Victory! 🎉
+                        </Text>
+                        <Text fontSize="xl" color="white" mb={4}>
+                            All shapes dodged successfully!
+                        </Text>
+                        <Text fontSize="3xl" fontWeight="bold" color="white" mb={2}>
+                            Final Score: {TOTAL_SHAPES}
+                        </Text>
+                        <Text fontSize="lg" color="white">
+                            You completed all {TOTAL_SHAPES} shapes!
+                        </Text>
+                        <Text fontSize="md" color="whiteAlpha.900" mt={4}>
+                            🏆 Master Level Achieved! 🏆
+                        </Text>
+                    </Box>
+                )}
+
+                {/* Collision warning during still phase */}
+                {gameState === 'shape-still' && hasCollision && (
+                    <Box
+                        position="absolute"
+                        top={20}
+                        left="50%"
+                        transform="translateX(-50%)"
+                        zIndex={15}
+                        bg="rgba(255, 0, 0, 0.9)"
+                        px={6}
+                        py={3}
+                        borderRadius="md"
+                    >
+                        <Text fontSize="2xl" fontWeight="bold" color="white">
+                            ⚠️ COLLISION DETECTED!
+                        </Text>
+                    </Box>
+                )}
             </Box>
 
             {/* Footer with buttons */}
@@ -120,28 +383,43 @@ const BodyGame: React.FC = () => {
                 <HStack gap={3} justifyContent="center">
                     <Button 
                         colorScheme="green" 
-                        onClick={handleStartScoring}
+                        onClick={handleStartGame}
+                        disabled={gameState !== 'idle' && gameState !== 'game-over' && gameState !== 'game-won'}
+                        size="lg"
                     >
-                        Start Game
-                    </Button>
-                    
-                    <Button 
-                        colorScheme="red" 
-                        onClick={handleStopScoring}
-                    >
-                        Pause Game
+                        {gameState === 'idle' ? 'Start Game' : 'Play Again'}
                     </Button>
 
                     <Button 
                         variant="outline" 
                         onClick={handleReset}
+                        size="lg"
                     >
                         Reset
                     </Button>
 
                     <Text fontSize="xl" fontWeight="semibold" color="white" ml={4}>
-                        Score: {score.toFixed(2)}
+                        {gameState === 'idle' && 'Ready to play - Press Start!'}
+                        {(gameState === 'initial-countdown' || gameState === 'between-countdown') && `Get ready: ${countdown}s`}
+                        {gameState === 'shape-blinking' && `Blinking... Shape ${currentShapeIndex + 1}/${TOTAL_SHAPES}`}
+                        {gameState === 'shape-still' && (hasCollision ? '❌ COLLISION!' : '✅ Hold position!')}
+                        {gameState === 'game-over' && `Game Over - Score: ${currentShapeIndex}`}
+                        {gameState === 'game-won' && `Perfect! Score: ${TOTAL_SHAPES}`}
                     </Text>
+                    
+                    {gameState === 'shape-still' && (
+                        <Box 
+                            ml={4}
+                            px={3}
+                            py={1}
+                            borderRadius="md"
+                            bg={hasCollision ? 'red.500' : 'green.500'}
+                        >
+                            <Text fontSize="lg" fontWeight="bold" color="white">
+                                {hasCollision ? '⚠️ FAIL' : '✓ PASS'}
+                            </Text>
+                        </Box>
+                    )}
                 </HStack>
             </Box>
         </Flex>

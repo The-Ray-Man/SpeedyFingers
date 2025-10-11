@@ -226,21 +226,6 @@ export const drawTrackedPersons = (
       });
     }
 
-    // Draw label above person's head
-    const nose = pose.keypoints[0]; // nose is at index 0
-    if (nose && nose.score !== undefined && nose.score > opts.minKeypointScore) {
-      ctx.fillStyle = color;
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      ctx.font = 'bold 20px Arial';
-      ctx.textAlign = 'center';
-      
-      const labelY = nose.y - 30;
-      
-      // Draw text outline for visibility
-      ctx.strokeText(label, nose.x, labelY);
-      // Draw text fill
-      ctx.fillText(label, nose.x, labelY);
-    }
+    // Player names removed - no labels displayed
   });
 };
