@@ -16,7 +16,8 @@ import {
     Icon
 } from "@chakra-ui/react";
 import { useNavigate } from 'react-router-dom';
-import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiSkipForward, FiChevronLeft, FiChevronRight, FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { useMusic } from '../context/MusicContext';
 
 interface TutorialSlide {
     title: string;
@@ -27,6 +28,7 @@ interface TutorialSlide {
 
 const Tutorial: React.FC = () => {
     const navigate = useNavigate();
+    const { isPlaying, volume, play, pause, toggle, setVolume } = useMusic();
     const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
     const [countdown, setCountdown] = React.useState<number | null>(null);
     const [slideProgress, setSlideProgress] = React.useState(0);
@@ -43,7 +45,8 @@ const Tutorial: React.FC = () => {
                 return () => clearTimeout(timer);
             } else {
                 // Countdown finished, navigate to game
-                navigate('/game');
+                pause
+                navigate('/game-2');
             }
         }
     }, [countdown, navigate]);
@@ -131,7 +134,8 @@ const Tutorial: React.FC = () => {
     const isLastSlide = currentSlideIndex === tutorialSlides.length - 1;
 
     const handleSkip = () => {
-        navigate('/game');
+        pause()
+        navigate('/game-2');
     };
 
     const handlePrevious = () => {
@@ -168,6 +172,19 @@ const Tutorial: React.FC = () => {
                                 <Text textStyle="4xl" fontWeight="semibold" color="gray.700">
                                     {currentSlideIndex + 1}/{tutorialSlides.length}
                                 </Text>
+                                
+                                {/* Music Toggle Button */}
+                                <Button
+                                    variant="outline"
+                                    colorPalette={isPlaying ? "green" : "gray"}
+                                    size="2xl"
+                                    onClick={toggle}
+                                    title={isPlaying ? "Pause Music" : "Play Music"}
+                                >
+                                    <Icon fontSize="2xl">
+                                        {isPlaying ? <FiVolume2 /> : <FiVolumeX />}
+                                    </Icon>
+                                </Button>
                                 
                                 <Button
                                     variant="solid"
