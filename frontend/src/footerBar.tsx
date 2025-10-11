@@ -1,20 +1,16 @@
-import React from 'react';
 import { Box, HStack, Text, Button, Icon } from "@chakra-ui/react";
 import { FiVolume2, FiVolumeX, FiUser } from 'react-icons/fi';
 import { useMusic } from './context/MusicContext';
+import { useUser } from './context/UserContext';
 
 const FooterBar: React.FC = () => {
     const { isPlaying, toggle } = useMusic();
+    const { user } = useUser();
     
-    // You can replace this with actual user data from your auth context/state
-    const currentUser = "Guest User"; // Replace with actual user logic
+    const currentUser = user?.username || "Guest User";
 
     return (
         <Box
-            position="fixed"
-            bottom={0}
-            left={0}
-            right={0}
             bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
             backdropFilter="blur(10px)"
             color="white"
@@ -22,9 +18,9 @@ const FooterBar: React.FC = () => {
             px={8}
             boxShadow="0 -4px 20px rgba(0, 0, 0, 0.15)"
             zIndex={1000}
-            borderTop="1px solid rgba(255, 255, 255, 0.1)"
+            height= 'var(--footer-height)'
         >
-            <HStack justify="space-between" align="center" maxW="1400px" mx="auto">
+            <HStack justify="space-between" align-items="center" alignSelf={"center" } height="100%">
                 {/* Left Side - User Info */}
                 <HStack 
                     gap={3} 
@@ -35,7 +31,7 @@ const FooterBar: React.FC = () => {
                     transition="all 0.3s ease"
                     _hover={{
                         bg: "rgba(255, 255, 255, 0.15)",
-                        transform: "translateY(-2px)"
+                        transform: "translateY(-3px)"
                     }}
                 >
                     <Box
