@@ -7,7 +7,8 @@ import ShapeWrapper from '@/components/game_components/ShapeWrapper';
 
 const GAME_DURATION = 60; // 60 seconds game duration
 
-const Game: React.FC = () => {
+
+const BodyGame: React.FC = () => {
     const [score, setScore] = useState<number>(0);
     const [isScoreTrackable, setIsScoreTrackable] = useState<boolean>(false);
     const [elapsed, setElapsed] = useState<number>(0); // seconds
@@ -15,8 +16,8 @@ const Game: React.FC = () => {
     const intervalRef = useRef<number | null>(null);
     const startTimeRef = useRef<number>(0); // Store the start time
 
-    const handleScoreIncrement = useCallback((incrementValue: number) => {
-        setScore((prevScore) => prevScore + incrementValue);
+    const handleScoreIncrement = useCallback(() => {
+        setScore((prevScore) => prevScore + 1);
     }, []); // Empty dependency array since it only uses setScore which is stable
 
     // Timer logic
@@ -59,7 +60,6 @@ const Game: React.FC = () => {
         setProgress(0);
         setIsScoreTrackable(false);
     };
-
     return (
         <Flex 
             direction="column" 
@@ -148,4 +148,4 @@ const Game: React.FC = () => {
     );
 };
 
-export default Game;
+export default BodyGame;

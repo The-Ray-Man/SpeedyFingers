@@ -16,7 +16,7 @@ import {
     Icon
 } from "@chakra-ui/react";
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiArrowRight, FiHome, FiSkipForward  } from 'react-icons/fi';
+import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 interface TutorialSlide {
     title: string;
@@ -28,6 +28,64 @@ interface TutorialSlide {
 const Tutorial: React.FC = () => {
     const navigate = useNavigate();
     const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
+    const [countdown, setCountdown] = React.useState<number | null>(null);
+    const [slideProgress, setSlideProgress] = React.useState(0);
+    const SLIDE_DURATION = 7000; // 7 seconds per slide
+    const TOTAL_SLIDES = 6; // Total number of slides
+
+    React.useEffect(() => {
+        // Only handle countdown logic here, slide progression is handled by progress bar
+        if (countdown !== null) {
+            if (countdown > 0) {
+                const timer = setTimeout(() => {
+                    setCountdown(countdown - 1);
+                }, 1000);
+                return () => clearTimeout(timer);
+            } else {
+                // Countdown finished, navigate to game
+                navigate('/game');
+            }
+        }
+    }, [countdown, navigate]);
+
+    // Slide progress animation
+    React.useEffect(() => {
+        if (countdown !== null) {
+            // Don't show progress bar during countdown
+            setSlideProgress(100);
+            return;
+        }
+
+        setSlideProgress(0);
+        let hasAdvanced = false; // Flag to prevent multiple advances
+        
+        const interval = setInterval(() => {
+            setSlideProgress(prev => {
+                const increment = (100 / SLIDE_DURATION) * 50; // Update every 50ms
+                const newProgress = Math.min(prev + increment, 100);
+                
+                // When progress reaches 100%, advance to next slide (only once)
+                if (newProgress >= 100 && !hasAdvanced) {
+                    hasAdvanced = true;
+                    
+                    if (currentSlideIndex < TOTAL_SLIDES - 1) {
+                        setTimeout(() => {
+                            setCurrentSlideIndex(prevIndex => prevIndex + 1);
+                        }, 50);
+                    } else if (currentSlideIndex === TOTAL_SLIDES - 1) {
+                        // Start countdown on last slide when progress completes
+                        setTimeout(() => {
+                            setCountdown(3);
+                        }, 50);
+                    }
+                }
+                
+                return newProgress;
+            });
+        }, 50);
+
+        return () => clearInterval(interval);
+    }, [currentSlideIndex, countdown]);
 
     const tutorialSlides: TutorialSlide[] = [
         {
@@ -69,28 +127,28 @@ const Tutorial: React.FC = () => {
     ];
 
     const currentSlide = tutorialSlides[currentSlideIndex];
-    const progress = ((currentSlideIndex + 1) / tutorialSlides.length) * 100;
-    const isLastSlide = currentSlideIndex === tutorialSlides.length - 1;
     const isFirstSlide = currentSlideIndex === 0;
-
-    const handleNext = () => {
-        if (currentSlideIndex < tutorialSlides.length - 1) {
-            setCurrentSlideIndex(prev => prev + 1);
-        }
-    };
-
-    const handlePrevious = () => {
-        if (currentSlideIndex > 0) {
-            setCurrentSlideIndex(prev => prev - 1);
-        }
-    };
+    const isLastSlide = currentSlideIndex === tutorialSlides.length - 1;
 
     const handleSkip = () => {
         navigate('/game');
     };
 
-    const handleStartGame = () => {
-        navigate('/game');
+    const handlePrevious = () => {
+        if (!isFirstSlide) {
+            setCurrentSlideIndex(prev => prev - 1);
+            setCountdown(null); // Reset countdown if going back
+        }
+    };
+
+    const handleNext = () => {
+        if (!isLastSlide) {
+            setCurrentSlideIndex(prev => prev + 1);
+            setCountdown(null); // Reset countdown if manually advancing
+        } else if (countdown === null) {
+            // If on last slide and countdown hasn't started, start it
+            setCountdown(3);
+        }
     };
 
     return (
@@ -98,41 +156,70 @@ const Tutorial: React.FC = () => {
             <Container maxW="90vw">
                 <Card.Root size="lg" boxShadow="xl">
                     <Card.Body p={{ base: 4, md: 6 }}>
-                        {/* Header with Skip Button */}
-                        <HStack justify="space-between" mb={4}>
-                            <Box>
+                        {/* Header with Skip Button and Progress */}
+                        <HStack justify="space-between" mb={4} align="center">
+                            <Box flex="1">
                                 <Heading size="xl">{currentSlide.title}</Heading>
                                 <Text color="gray.600" mt={1}>{currentSlide.description}</Text>
                             </Box>
-                            <Button
-                                variant="solid"
-                                colorPalette= "red"                               
-                                size="2xl"
-                                onClick={handleSkip}
-                            >
-                                <Icon>
-                                    <FiSkipForward />
-                                </Icon>
-                                Skip
-                            </Button>
+                            
+                            <HStack gap={30} align="center" >
+                                {/* Slide Counter */}
+                                <Text textStyle="4xl" fontWeight="semibold" color="gray.700">
+                                    {currentSlideIndex + 1}/{tutorialSlides.length}
+                                </Text>
+                                
+                                <Button
+                                    variant="solid"
+                                    colorPalette="red"                               
+                                    size="2xl"
+                                    onClick={handleSkip}
+                                >
+                                    <Icon>
+                                        <FiSkipForward />
+                                    </Icon>
+                                    Skip
+                                </Button>
+                            </HStack>
                         </HStack>
 
-                        {/* Progress Bar */}
+                        {/* Slide Timer Bar */}
                         <Box mb={4}>
-                            <HStack justify="space-between" mb={2}>
-                                <Text fontSize="sm" color="gray.600">
-                                    Slide {currentSlideIndex + 1} of {tutorialSlides.length}
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                    {Math.round(progress)}% Complete
-                                </Text>
-                            </HStack>
-                            <Progress.Root value={progress} size="sm" colorScheme="blue">
-                                <Progress.Track>
-                                    <Progress.Range />
+                            <Progress.Root value={slideProgress} size="xl" colorPalette="blue" animated>
+                                <Progress.Track bg="gray.200">
+                                    <Progress.Range transition="all 0.05s linear" />
                                 </Progress.Track>
                             </Progress.Root>
                         </Box>
+
+                        {/* Navigation Buttons */}
+                        <HStack justify="right" gap={4} mb={4}>
+                            <Button
+                                variant="outline"
+                                onClick={handlePrevious}
+                                disabled={isFirstSlide}
+                                size="lg"
+                                colorPalette="blue"
+                            >
+                                <Icon>
+                                    <FiChevronLeft />
+                                </Icon>
+                                Previous
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                onClick={handleNext}
+                                disabled={isLastSlide && countdown !== null}
+                                size="lg"
+                                colorPalette="blue"
+                            >
+                                Next
+                                <Icon>
+                                    <FiChevronRight />
+                                </Icon>
+                            </Button>
+                        </HStack>
 
                         {/* Image Section - Takes Most Space */}
                         {currentSlide.image && (
@@ -145,6 +232,7 @@ const Tutorial: React.FC = () => {
                                 p={4}
                                 minH="70vh"
                                 alignItems="center"
+                                position="relative"
                             >
                                 <Image 
                                     src={currentSlide.image} 
@@ -152,46 +240,58 @@ const Tutorial: React.FC = () => {
                                     maxH="70vh"
                                     maxW="100%"
                                     objectFit="contain"
+                                    opacity={countdown !== null ? 0.3 : 1}
+                                    transition="opacity 0.3s"
                                 />
+                                
+                                {/* Countdown Overlay */}
+                                {countdown !== null && countdown > 0 && (
+                                    <Box
+                                        position="absolute"
+                                        top="50%"
+                                        left="50%"
+                                        transform="translate(-50%, -50%)"
+                                        textAlign="center"
+                                    >
+                                        <Text
+                                            fontSize="200px"
+                                            fontWeight="bold"
+                                            color="blue.500"
+                                            lineHeight="1"
+                                            animation="pulse 0.5s ease-in-out"
+                                        >
+                                            {countdown}
+                                        </Text>
+                                        <Text
+                                            fontSize="2xl"
+                                            fontWeight="semibold"
+                                            color="gray.700"
+                                            mt={4}
+                                        >
+                                            Get Ready!
+                                        </Text>
+                                    </Box>
+                                )}
+                                
+                                {countdown === 0 && (
+                                    <Box
+                                        position="absolute"
+                                        top="50%"
+                                        left="50%"
+                                        transform="translate(-50%, -50%)"
+                                        textAlign="center"
+                                    >
+                                        <Text
+                                            fontSize="4xl"
+                                            fontWeight="bold"
+                                            color="green.500"
+                                        >
+                                            Let's Go! 🚀
+                                        </Text>
+                                    </Box>
+                                )}
                             </Box>
                         )}
-
-                        {/* Navigation Buttons */}
-                        <HStack justify="space-between" mt={4}>
-                            <Button
-                                variant="outline"
-                                onClick={handlePrevious}
-                                disabled={isFirstSlide}
-                                size="lg"
-                            >
-                                <Icon mr={2}>
-                                    <FiArrowLeft />
-                                </Icon>
-                                Previous
-                            </Button>
-
-                            {isLastSlide ? (
-                                <Button
-                                    colorScheme="blue"
-                                    size="lg"
-                                    onClick={handleStartGame}
-                                    fontWeight="bold"
-                                >
-                                    Start Game
-                                </Button>
-                            ) : (
-                                <Button
-                                    colorScheme="blue"
-                                    onClick={handleNext}
-                                    size="lg"
-                                >
-                                    Next
-                                    <Icon ml={2}>
-                                        <FiArrowRight />
-                                    </Icon>
-                                </Button>
-                            )}
-                        </HStack>
                     </Card.Body>
                 </Card.Root>
             </Container>
