@@ -7,6 +7,8 @@ import BodyGame from "./pages/BodyGame";
 import FingerGameMenu from "./pages/FingerGameMenu";
 import BodyGameMenu from "./pages/BodyGameMenu";
 import { MusicProvider } from "./context/MusicContext";
+import FooterBar from "./footerBar"; 
+
 import ChangeUser from "@/pages/ChangeUser";
 import { useUser } from "@/context/UserContext";
 
@@ -19,10 +21,12 @@ const RequireUserLayout: React.FC = () => {
   return <Outlet />;
 };
 
+
 const App = () => {
   return (
-    <MusicProvider autoPlay={false} defaultVolume={0.5}>
+    <MusicProvider autoPlay={true} defaultVolume={0.5}>
       <Router>
+
         <Routes>
           {/* Public route(s) */}
           <Route path="/changeuser" element={<ChangeUser />} />
@@ -38,6 +42,9 @@ const App = () => {
             <Route path="/game-2" element={<BodyGame />} />
           </Route>
         </Routes>
+
+         <FooterBar />
+
       </Router>
     </MusicProvider>
   );
