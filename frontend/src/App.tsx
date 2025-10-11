@@ -7,20 +7,24 @@ import BodyGame from "./pages/BodyGame";
 import FingerGameMenu from "./pages/FingerGameMenu";
 import BodyGameMenu from "./pages/BodyGameMenu";
 import { MusicProvider } from "./context/MusicContext";
+import FooterBar from "./footerBar"; // ✅ make sure the path is correct
 
 const App = () => {
   return (
-    <MusicProvider autoPlay={false} defaultVolume={0.5}>
+    <MusicProvider autoPlay={true} defaultVolume={0.5}>
       <Router>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
-          <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
-          <Route path="/tutorialFinger" element={<TutorialFinger />} />
-          <Route path="/tutorialBody" element={<TutorialBody />} />
-          <Route path="/game-1" element={<FingerGame />} />
-          <Route path="/game-2" element={<BodyGame />} />
-        </Routes>
+        <div className="app">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
+            <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
+            <Route path="/tutorialFinger" element={<TutorialFinger />} />
+            <Route path="/tutorialBody" element={<TutorialBody />} />
+            <Route path="/game-1" element={<FingerGame />} />
+            <Route path="/game-2" element={<BodyGame />} />
+          </Routes>
+          <FooterBar />
+        </div>
       </Router>
     </MusicProvider>
   );
