@@ -113,6 +113,11 @@ const PlayMode: React.FC = () => {
 
     // Clear canvas
     canvasCtx.save();
+    
+    // Flip canvas horizontally for mirror effect
+    canvasCtx.translate(canvasRef.current.width, 0);
+    canvasCtx.scale(-1, 1);
+    
     canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
     // Draw video frame
