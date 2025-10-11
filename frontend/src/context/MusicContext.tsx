@@ -34,15 +34,27 @@ export const MusicProvider: React.FC<MusicProviderProps> = ({
     audioRef.current.loop = true;
     audioRef.current.volume = defaultVolume;
 
+    // Add event listeners to track actual playback state
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
+
+    audioRef.current.addEventListener('play', handlePlay);
+    audioRef.current.addEventListener('pause', handlePause);
+    audioRef.current.addEventListener('ended', handleEnded);
+
     if (autoPlay) {
       audioRef.current.play().catch((error) => {
         console.log('Auto-play prevented:', error);
-        setIsPlaying(true);
+        setIsPlaying(false);
       });
     }
 
     return () => {
       if (audioRef.current) {
+        audioRef.current.removeEventListener('play', handlePlay);
+        audioRef.current.removeEventListener('pause', handlePause);
+        audioRef.current.removeEventListener('ended', handleEnded);
         audioRef.current.pause();
         audioRef.current = null;
       }
@@ -53,15 +65,14 @@ export const MusicProvider: React.FC<MusicProviderProps> = ({
     if (audioRef.current) {
       audioRef.current.play().catch((error) => {
         console.error('Error playing audio:', error);
+        setIsPlaying(false);
       });
-      setIsPlaying(true);
     }
   };
 
   const pause = () => {
     if (audioRef.current) {
       audioRef.current.pause();
-      setIsPlaying(false);
     }
   };
 
