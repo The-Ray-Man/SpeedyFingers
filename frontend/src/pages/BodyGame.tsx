@@ -36,7 +36,6 @@ const BodyGame: React.FC = () => {
     const [hasCollision, setHasCollision] = useState<boolean>(false);
     const [collisionDuringStill, setCollisionDuringStill] = useState<boolean>(false);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [cameraStarted, setCameraStarted] = useState(true);
     
     const blinkIntervalRef = useRef<number | null>(null);
     const timeoutRef = useRef<number | null>(null);
