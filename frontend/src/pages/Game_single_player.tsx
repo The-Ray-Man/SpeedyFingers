@@ -23,7 +23,7 @@ import { calculateAdvancedGestureSimilarity } from "../advancedGestureRecognitio
 const GAME_DURATION = 60; // 60 seconds
 const SIMILARITY_THRESHOLD = 0.6; // 60% similarity to accept
 
-const Game: React.FC = () => {
+const FingerGame: React.FC = () => {
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -538,4 +538,4 @@ const Game: React.FC = () => {
   );
 };
 
-export default Game;
+export default FingerGame;

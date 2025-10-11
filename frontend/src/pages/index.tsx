@@ -138,7 +138,7 @@ const App = () => {
   }, []);
 
   const handleSinglePlayer = () => {
-    window.location.href = "/game";
+    window.location.href = "/game-1";
   };
 
   const handleMultiPlayer = () => {
