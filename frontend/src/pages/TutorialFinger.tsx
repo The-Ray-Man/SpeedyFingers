@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { 
     Box, 
     Container, 
@@ -8,9 +8,6 @@ import {
     HStack,
     Button,
     Card,
-    List,
-    Badge,
-    Code,
     Image,
     Progress,
     Icon
@@ -18,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { FiSkipForward, FiChevronLeft, FiChevronRight, FiVolume2, FiVolumeX } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
+import { useEffect, useState } from "react";
 
 interface TutorialSlide {
     title: string;
@@ -29,13 +27,13 @@ interface TutorialSlide {
 const Tutorial: React.FC = () => {
     const navigate = useNavigate();
     const { isPlaying, volume, play, pause, toggle, setVolume } = useMusic();
-    const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
-    const [countdown, setCountdown] = React.useState<number | null>(null);
-    const [slideProgress, setSlideProgress] = React.useState(0);
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const [countdown, setCountdown] = useState<number | null>(null);
+    const [slideProgress, setSlideProgress] = useState(0);
     const SLIDE_DURATION = 7000; // 7 seconds per slide
     const TOTAL_SLIDES = 6; // Total number of slides
 
-    React.useEffect(() => {
+    useEffect(() => {
         // Only handle countdown logic here, slide progression is handled by progress bar
         if (countdown !== null) {
             if (countdown > 0) {
@@ -52,7 +50,7 @@ const Tutorial: React.FC = () => {
     }, [countdown, navigate]);
 
     // Slide progress animation
-    React.useEffect(() => {
+    useEffect(() => {
         if (countdown !== null) {
             // Don't show progress bar during countdown
             setSlideProgress(100);

@@ -9,7 +9,6 @@ import {
   Text,
   Progress,
   Card,
-  Input,
   Badge,
 } from "@chakra-ui/react";
 import { Hands, type Results } from "@mediapipe/hands";
@@ -20,15 +19,18 @@ import { getRandomGesture, matchGesture, type GestureDefinition } from "../gestu
 import { landmarksToArray } from "../advancedGestureRecognition";
 import { submitScore } from "../leaderboardApi";
 import { Toaster, toaster } from "@/components/ui/toaster";
+import { useUser } from "@/context/UserContext";
 
 const GAME_DURATION = 60; // 60 seconds
 const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
 const PlayMode: React.FC = () => {
+  // Get user from context
+  const { user } = useUser();
+
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [playerName, setPlayerName] = useState("");
   const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
   const [currentDefinition, setCurrentDefinition] = useState<GestureDefinition | null>(null);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
@@ -98,6 +100,17 @@ const PlayMode: React.FC = () => {
       }
     };
   }, []);
+
+  // Auto-start game when model is ready
+  useEffect(() => {
+    if (isModelReady && !gameStarted && !gameOver) {
+      // Small delay to ensure everything is initialized
+      const timer = setTimeout(() => {
+        startGame();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isModelReady, gameStarted, gameOver]);
 
   // Update game state ref
   useEffect(() => {
@@ -226,15 +239,6 @@ const PlayMode: React.FC = () => {
   // Start the game
   const startGame = async () => {
     console.log("Start game clicked");
-    
-    if (!playerName.trim()) {
-      toaster.create({
-        title: "Error",
-        description: "Please enter your name!",
-        type: "error",
-      });
-      return;
-    }
 
     if (!handsRef.current) {
       toaster.create({
@@ -352,9 +356,18 @@ const PlayMode: React.FC = () => {
 
   // Submit score
   const handleSubmitScore = async () => {
+    if (!user) {
+      toaster.create({
+        title: "Error",
+        description: "User not found. Please set your username.",
+        type: "error",
+      });
+      return;
+    }
+
     try {
       await submitScore({
-        name: playerName,
+        name: user.username,
         score: score,
         symbols: symbolsCompleted,
         gameMode: "single",
@@ -401,15 +414,15 @@ const PlayMode: React.FC = () => {
           </Text>
         </Box>
 
-        {/* Game Setup */}
+        {/* Loading State */}
         {!gameStarted && !gameOver && (
           <Card.Root p={8} maxW="md" mx="auto">
             <VStack gap={4}>
-              <Heading size="lg">Ready to Play?</Heading>
-              <Text textAlign="center">
-                Recreate the gestures shown on screen.
-                Match as many as you can in {GAME_DURATION} seconds!
-              </Text>
+              {user && (
+                <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                  Playing as: {user.username}
+                </Text>
+              )}
               
               {cameraError && (
                 <Box p={4} bg="red.50" borderRadius="md" w="full">
@@ -421,27 +434,16 @@ const PlayMode: React.FC = () => {
               
               {!isModelReady && (
                 <Box p={4} bg="blue.50" borderRadius="md" w="full">
-                  <Text color="blue.700" fontSize="sm">
-                    ⏳ Loading hand detection model...
-                  </Text>
+                  <VStack gap={2}>
+                    <Text color="blue.700" fontSize="lg" fontWeight="bold">
+                      ⏳ Loading hand detection model...
+                    </Text>
+                    <Text color="blue.600" fontSize="sm">
+                      Game will start automatically
+                    </Text>
+                  </VStack>
                 </Box>
               )}
-              
-              <Input
-                placeholder="Enter your name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                size="lg"
-              />
-              <Button 
-                colorScheme="blue" 
-                size="lg" 
-                onClick={startGame} 
-                w="full"
-                disabled={!isModelReady}
-              >
-                {isModelReady ? "Start Game" : "Loading..."}
-              </Button>
             </VStack>
           </Card.Root>
         )}
@@ -569,9 +571,11 @@ const PlayMode: React.FC = () => {
                   Final Score: {score}
                 </Text>
                 <Text fontSize="xl">Symbols Completed: {symbolsCompleted}</Text>
-                <Text fontSize="lg" color="gray.600">
-                  Player: {playerName}
-                </Text>
+                {user && (
+                  <Text fontSize="lg" color="gray.600">
+                    Player: {user.username}
+                  </Text>
+                )}
               </VStack>
               <Button colorScheme="green" size="lg" onClick={handleSubmitScore} w="full">
                 Submit to Leaderboard
