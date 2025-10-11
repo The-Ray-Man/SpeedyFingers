@@ -1,7 +1,7 @@
 import { type NormalizedLandmarkList } from "@mediapipe/hands";
 
 // Hand landmark indices (MediaPipe Hands provides 21 landmarks per hand)
-const LANDMARKS = {
+export const LANDMARKS = {
   WRIST: 0,
   THUMB_CMC: 1,
   THUMB_MCP: 2,
@@ -25,7 +25,7 @@ const LANDMARKS = {
   PINKY_TIP: 20,
 };
 
-interface HandPose {
+export interface HandPose {
   thumbExtended: boolean;
   indexExtended: boolean;
   middleExtended: boolean;
@@ -39,149 +39,12 @@ interface HandPose {
   thumbRelevant: boolean; // Whether thumb should be considered for this gesture
 }
 
-// Reference poses for each gesture (using emoji as keys)
-const REFERENCE_POSES: Record<string, HandPose> = {
-  // Peace sign (index and middle extended)
-  "✌️": {
-    thumbExtended: false,
-    indexExtended: true,
-    middleExtended: true,
-    ringExtended: false,
-    pinkyExtended: false,
-    thumbAngle: 45,
-    indexAngle: 160,
-    middleAngle: 160,
-    ringAngle: 45,
-    pinkyAngle: 45,
-    thumbRelevant: false,
-  },
-  // Raised back of hand - All fingers together pointing up
-  "🤚": {
-    thumbExtended: true,
-    indexExtended: true,
-    middleExtended: true,
-    ringExtended: true,
-    pinkyExtended: true,
-    thumbAngle: 120,
-    indexAngle: 150,
-    middleAngle: 160,
-    ringAngle: 150,
-    pinkyAngle: 140,
-    thumbRelevant: true,
-  },
-  // Open hand with fingers spread
-  "🖐️": {
-    thumbExtended: true,
-    indexExtended: true,
-    middleExtended: true,
-    ringExtended: true,
-    pinkyExtended: true,
-    thumbAngle: 90,
-    indexAngle: 170,
-    middleAngle: 175,
-    ringAngle: 170,
-    pinkyAngle: 165,
-    thumbRelevant: true,
-  },
-  // Three fingers (thumb, index, middle)
-  "🤟": {
-    thumbExtended: true,
-    indexExtended: true,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: true,
-    thumbAngle: 85,
-    indexAngle: 165,
-    middleAngle: 165,
-    ringAngle: 40,
-    pinkyAngle: 40,
-    thumbRelevant: true,
-  },
-  // OK sign (thumb and index touching, others extended)
-  "👌": {
-    thumbExtended: true,
-    indexExtended: false, // Bent to touch thumb
-    middleExtended: true,
-    ringExtended: true,
-    pinkyExtended: true,
-    thumbAngle: 100,
-    indexAngle: 90,
-    middleAngle: 170,
-    ringAngle: 170,
-    pinkyAngle: 165,
-    thumbRelevant: true,
-  },
-  // Fist (all fingers closed)
-  "✊": {
-    thumbExtended: false,
-    indexExtended: false,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: false,
-    thumbAngle: 40,
-    indexAngle: 45,
-    middleAngle: 45,
-    ringAngle: 45,
-    pinkyAngle: 45,
-    thumbRelevant: false,
-  },
-  // Rock sign - Three fingers (index, middle, ring extended)
-  "🤘": {
-    thumbExtended: false,
-    indexExtended: true,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: true,
-    thumbAngle: 45,
-    indexAngle: 165,
-    middleAngle: 170,
-    ringAngle: 165,
-    pinkyAngle: 45,
-    thumbRelevant: false,
-  },
-  // Thumbs up
-  "👍": {
-    thumbExtended: true,
-    indexExtended: false,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: false,
-    thumbAngle: 160,
-    indexAngle: 45,
-    middleAngle: 40,
-    ringAngle: 40,
-    pinkyAngle: 45,
-    thumbRelevant: true,
-  },
-  // Pointing finger (only index extended)
-  "☝️": {
-    thumbExtended: false,
-    indexExtended: true,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: false,
-    thumbAngle: 45,
-    indexAngle: 165,
-    middleAngle: 45,
-    ringAngle: 45,
-    pinkyAngle: 45,
-    thumbRelevant: false,
-  },
-  // Shaka/Hang loose (pinky up)
-  "🤙": {
-    thumbExtended: false,
-    indexExtended: false,
-    middleExtended: false,
-    ringExtended: false,
-    pinkyExtended: true,
-    thumbAngle: 45,
-    indexAngle: 45,
-    middleAngle: 45,
-    ringAngle: 45,
-    pinkyAngle: 165,
-    thumbRelevant: false,
-  },
-};
+/**
+ * Convert MediaPipe landmarks to plain array format
+ */
+export function landmarksToArray(landmarks: NormalizedLandmarkList): number[][] {
+  return landmarks.map((lm) => [lm.x, lm.y, lm.z]);
+}
 
 /**
  * Calculate the angle of a finger based on its landmarks
@@ -267,7 +130,7 @@ function isThumbRelevant(landmarks: NormalizedLandmarkList): boolean {
 /**
  * Extract current hand pose from landmarks
  */
-function getCurrentHandPose(landmarks: NormalizedLandmarkList): HandPose {
+export function getCurrentHandPose(landmarks: NormalizedLandmarkList): HandPose {
   // Check if each finger is extended
   const thumbExtended = isFingerExtended(
     landmarks,
@@ -352,7 +215,7 @@ function getCurrentHandPose(landmarks: NormalizedLandmarkList): HandPose {
 /**
  * Calculate similarity between two poses
  */
-function comparePoses(currentPose: HandPose, referencePose: HandPose): number {
+export function comparePoses(currentPose: HandPose, referencePose: HandPose): number {
   let totalScore = 0;
   let totalWeight = 0;
 
@@ -415,41 +278,6 @@ function comparePoses(currentPose: HandPose, referencePose: HandPose): number {
 }
 
 /**
- * Calculate similarity between current hand gesture and target symbol
- * @param landmarks - Hand landmarks from MediaPipe
- * @param targetSymbol - The emoji symbol to match against
- * @returns Similarity score between 0 and 1
- */
-export function calculateAdvancedGestureSimilarity(
-  landmarks: NormalizedLandmarkList[],
-  targetSymbol: string
-): number {
-  if (!landmarks || landmarks.length === 0) {
-    return 0;
-  }
-
-  const referencePose = REFERENCE_POSES[targetSymbol];
-  if (!referencePose) {
-    console.warn(`No reference pose found for symbol: ${targetSymbol}`);
-    console.log("Available symbols:", Object.keys(REFERENCE_POSES));
-    return 0;
-  }
-
-  // Use the first hand detected (can be enhanced to use both hands)
-  const currentPose = getCurrentHandPose(landmarks[0]);
-
-  // Calculate similarity
-  const similarity = comparePoses(currentPose, referencePose);
-
-  // Debug logging when similarity is high
-  if (similarity > 0.5) {
-    console.log(`Gesture similarity for ${targetSymbol}: ${(similarity * 100).toFixed(1)}%`);
-  }
-
-  return similarity;
-}
-
-/**
  * Get debug information about current hand pose
  */
 export function getHandPoseDebugInfo(landmarks: NormalizedLandmarkList): string {
@@ -467,3 +295,4 @@ export function getHandPoseDebugInfo(landmarks: NormalizedLandmarkList): string 
          `Angles: T=${pose.thumbAngle.toFixed(0)}° I=${pose.indexAngle.toFixed(0)}° ` +
          `M=${pose.middleAngle.toFixed(0)}° R=${pose.ringAngle.toFixed(0)}° P=${pose.pinkyAngle.toFixed(0)}°`;
 }
+

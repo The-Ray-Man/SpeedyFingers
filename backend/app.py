@@ -1,5 +1,6 @@
 import json
 import threading
+import uuid
 from pathlib import Path
 from datetime import datetime
 
@@ -7,7 +8,15 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import LeaderboardEntry, ScoreSubmission
+from models import (
+    LeaderboardEntry, 
+    ScoreSubmission,
+    GestureDefinition,
+    GestureVariant,
+    GestureSubmission,
+    MatchRequest,
+    MatchResponse,
+)
 
 # File paths for persistent storage
 LEADERBOARD_DIR = Path("data")
@@ -15,6 +24,7 @@ FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
 FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
 BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
 BODY_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "body_multi_player.json"
+GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"  # New gesture storage
 
 # Legacy file paths (for backward compatibility)
 SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "single_player.json"
@@ -50,6 +60,10 @@ def initialize_storage():
     ]:
         if not file_path.exists():
             file_path.write_text("[]")
+    
+    # Initialize gestures file
+    if not GESTURES_FILE.exists():
+        GESTURES_FILE.write_text("{}")
 
 
 def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
@@ -255,6 +269,183 @@ def submit_score(submission: ScoreSubmission):
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "VIS Minigame Leaderboard"}
+
+
+# ==================== GESTURE MANAGEMENT ENDPOINTS ====================
+
+def load_gestures() -> dict[str, GestureDefinition]:
+    """Load all gestures from file with thread safety."""
+    with file_lock:
+        try:
+            data = json.loads(GESTURES_FILE.read_text())
+            result = {}
+            for symbol, gesture_data in data.items():
+                result[symbol] = GestureDefinition(**gesture_data)
+            return result
+        except Exception as e:
+            print(f"Error loading gestures: {e}")
+            return {}
+
+
+def save_gestures(gestures: dict[str, GestureDefinition]):
+    """Save all gestures to file with thread safety."""
+    with file_lock:
+        data = {symbol: gesture.model_dump(mode="json") for symbol, gesture in gestures.items()}
+        GESTURES_FILE.write_text(json.dumps(data, indent=2, default=str))
+
+
+@app.post("/api/gestures", status_code=status.HTTP_201_CREATED)
+def save_gesture(submission: GestureSubmission):
+    """
+    Save a new gesture variant for a symbol.
+    Creates a new symbol entry if it doesn't exist.
+    """
+    gestures = load_gestures()
+    
+    # Create new variant with unique ID
+    variant = GestureVariant(
+        id=str(uuid.uuid4()),
+        handCount=submission.handCount,
+        landmarks=submission.landmarks,
+        activeFingers=submission.activeFingers,
+        activeRegions=submission.activeRegions,
+        createdAt=datetime.now(),
+        metadata=submission.metadata,
+    )
+    
+    # Add to existing symbol or create new one
+    if submission.symbol in gestures:
+        gestures[submission.symbol].variants.append(variant)
+    else:
+        gestures[submission.symbol] = GestureDefinition(
+            symbol=submission.symbol,
+            variants=[variant]
+        )
+    
+    save_gestures(gestures)
+    
+    return {
+        "success": True,
+        "symbol": submission.symbol,
+        "variantId": variant.id,
+        "totalVariants": len(gestures[submission.symbol].variants)
+    }
+
+
+@app.get("/api/gestures")
+def get_all_gestures():
+    """Get a list of all known symbols and their variant counts."""
+    gestures = load_gestures()
+    return {
+        "symbols": [
+            {
+                "symbol": symbol,
+                "variantCount": len(definition.variants),
+                "lastUpdated": max(v.createdAt for v in definition.variants) if definition.variants else None
+            }
+            for symbol, definition in gestures.items()
+        ]
+    }
+
+
+@app.get("/api/gestures/{symbol}")
+def get_gesture_by_symbol(symbol: str):
+    """Get all gesture variants for a specific symbol."""
+    gestures = load_gestures()
+    
+    if symbol not in gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No gestures found for symbol: {symbol}"
+        )
+    
+    return gestures[symbol].model_dump(mode="json")
+
+
+@app.get("/api/gestures/random/get")
+def get_random_gesture():
+    """Get a random symbol and all its gesture variants."""
+    import random
+    
+    gestures = load_gestures()
+    
+    if not gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No gestures available. Please record some gestures first."
+        )
+    
+    # Select random symbol
+    symbol = random.choice(list(gestures.keys()))
+    return {
+        "symbol": symbol,
+        "definition": gestures[symbol].model_dump(mode="json")
+    }
+
+
+@app.post("/api/gestures/match")
+def match_gesture(request: MatchRequest):
+    """
+    Compare submitted landmarks with stored gesture variants.
+    Returns the best similarity score and matched variant.
+    """
+    gestures = load_gestures()
+    
+    if request.symbol not in gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No gestures found for symbol: {request.symbol}"
+        )
+    
+    # Import the comparison logic from ai.py
+    from ai import compare_hand_poses
+    
+    best_similarity = 0.0
+    best_variant_id = None
+    
+    # Compare against all variants
+    for variant in gestures[request.symbol].variants:
+        similarity = compare_hand_poses(request.landmarks, variant.landmarks)
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_variant_id = variant.id
+    
+    return MatchResponse(
+        similarity=best_similarity,
+        variantId=best_variant_id or "",
+        confidence=best_similarity
+    )
+
+
+@app.delete("/api/gestures/{symbol}/{variant_id}")
+def delete_gesture_variant(symbol: str, variant_id: str):
+    """Delete a specific gesture variant."""
+    gestures = load_gestures()
+    
+    if symbol not in gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No gestures found for symbol: {symbol}"
+        )
+    
+    # Find and remove the variant
+    variants = gestures[symbol].variants
+    initial_count = len(variants)
+    gestures[symbol].variants = [v for v in variants if v.id != variant_id]
+    
+    if len(gestures[symbol].variants) == initial_count:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Variant {variant_id} not found for symbol {symbol}"
+        )
+    
+    # Remove symbol entirely if no variants left
+    if not gestures[symbol].variants:
+        del gestures[symbol]
+    
+    save_gestures(gestures)
+    
+    return {"success": True, "message": "Variant deleted successfully"}
 
 
 if __name__ == "__main__":
