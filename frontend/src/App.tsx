@@ -3,17 +3,20 @@ import Home from "@/pages/Home";
 import Index from "@/pages/index";
 import Tutorial from "@/pages/Tutorial";
 import Game from "@/pages/Game";
+import { MusicProvider } from "@/context/MusicContext";
 
 const App = () => {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/tutorial" element={<Tutorial />} />
-        <Route path="/game" element={<Game />} />
-      </Routes>
-    </Router>
+    <MusicProvider autoPlay={false} defaultVolume={0.5}>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/tutorial" element={<Tutorial />} />
+          <Route path="/game" element={<Game />} />
+        </Routes>
+      </Router>
+    </MusicProvider>
   );
 };
 
