@@ -1,4 +1,5 @@
 import * as poseDetection from '@tensorflow-models/pose-detection';
+import type { TrackedPerson } from './personTracking';
 
 // MoveNet keypoint connections for drawing skeleton
 export const POSE_CONNECTIONS: [number, number][] = [
@@ -165,3 +166,81 @@ export const KEYPOINT_NAMES = [
   'left_ankle',
   'right_ankle',
 ];
+
+/**
+ * Draw tracked persons with individual colors and labels
+ */
+export const drawTrackedPersons = (
+  ctx: CanvasRenderingContext2D,
+  trackedPeople: TrackedPerson[],
+  options: DrawOptions = {}
+): void => {
+  const opts = { ...defaultDrawOptions, ...options };
+
+  trackedPeople.forEach((person) => {
+    const { pose, color, label } = person;
+
+    // Draw skeleton connections with person's color
+    if (opts.showSkeleton) {
+      const { keypoints } = pose;
+      
+      POSE_CONNECTIONS.forEach(([startIdx, endIdx]) => {
+        const start = keypoints[startIdx];
+        const end = keypoints[endIdx];
+
+        if (
+          start.score !== undefined &&
+          end.score !== undefined &&
+          start.score >= opts.minKeypointScore &&
+          end.score >= opts.minKeypointScore
+        ) {
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = opts.lineWidth;
+          ctx.stroke();
+        }
+      });
+    }
+
+    // Draw keypoints with person's color
+    if (opts.showKeypoints) {
+      const { keypoints } = pose;
+      
+      keypoints.forEach((keypoint) => {
+        if (
+          keypoint.score !== undefined &&
+          keypoint.score >= opts.minKeypointScore
+        ) {
+          ctx.beginPath();
+          ctx.arc(keypoint.x, keypoint.y, opts.keypointRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
+          
+          // Add a border
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      });
+    }
+
+    // Draw label above person's head
+    const nose = pose.keypoints[0]; // nose is at index 0
+    if (nose && nose.score !== undefined && nose.score > opts.minKeypointScore) {
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      
+      const labelY = nose.y - 30;
+      
+      // Draw text outline for visibility
+      ctx.strokeText(label, nose.x, labelY);
+      // Draw text fill
+      ctx.fillText(label, nose.x, labelY);
+    }
+  });
+};

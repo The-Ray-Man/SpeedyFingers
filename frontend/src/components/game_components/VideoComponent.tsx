@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Box, Button, HStack, VStack, Text } from "@chakra-ui/react";
 import { usePoseDetection, type PoseDetectionConfig } from "../../hooks/usePoseDetection";
-import { drawPoses, clearCanvas, type DrawOptions } from "../../utils/poseDrawing";
+import { drawTrackedPersons, clearCanvas, type DrawOptions } from "../../utils/poseDrawing";
+import { PersonTracker, type TrackedPerson } from "../../utils/personTracking";
 
 interface VideoComponentProps {
   scoreTrackable: boolean;
@@ -13,11 +14,12 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
     const intervalRef = useRef<number | null>(null);
+    const personTrackerRef = useRef<PersonTracker>(new PersonTracker());
 
     // Pose detection state
     const [poseConfig, setPoseConfig] = useState<PoseDetectionConfig>({
-      modelType: 'SinglePose.Lightning',
-      maxPoses: 1,
+      modelType: 'MultiPose.Lightning', // Changed to MultiPose for tracking multiple people
+      maxPoses: 2, // Track 2 people
       minPoseScore: 0.25,
       minKeypointScore: 0.3,
     });
@@ -32,6 +34,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
     });
 
     const [showPoseDetection, setShowPoseDetection] = useState(true);
+    const [trackedPeople, setTrackedPeople] = useState<TrackedPerson[]>([]);
 
     const {
       detector,
@@ -99,18 +102,15 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
           // Detect poses
           const poses = await detectPoses(video);
 
-          // Mirror the context for drawing (since video is mirrored)
-          ctx.save();
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
+          // Update person tracking
+          const tracked = personTrackerRef.current.updatePoses(poses);
+          setTrackedPeople(tracked);
 
-          // Draw poses
-          drawPoses(ctx, poses, {
+          // Draw tracked persons with individual colors and labels
+          drawTrackedPersons(ctx, tracked, {
             ...drawOptions,
             minKeypointScore: poseConfig.minKeypointScore,
           });
-
-          ctx.restore();
         } catch (err) {
           console.error('Error in pose detection:', err);
         }
@@ -276,6 +276,37 @@ const VideoComponent: React.FC<VideoComponentProps> = ({ scoreTrackable, onScore
           >
             Skeleton
           </Button>
+
+          <Button 
+            size="sm" 
+            onClick={() => {
+              personTrackerRef.current.reset();
+              setTrackedPeople([]);
+            }}
+            colorScheme="red"
+            variant="outline"
+          >
+            Reset IDs
+          </Button>
+
+          {/* Show tracked people badges */}
+          {trackedPeople.map(person => (
+            <Box 
+              key={person.id}
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="xs"
+              fontWeight="bold"
+              style={{ 
+                backgroundColor: person.color + '40', 
+                color: person.color,
+                border: `2px solid ${person.color}`
+              }}
+            >
+              {person.label}
+            </Box>
+          ))}
 
           {isPoseLoading && <Text fontSize="sm" color="yellow.300">Loading model...</Text>}
           {poseError && <Text fontSize="sm" color="red.300">Error: {poseError}</Text>}
