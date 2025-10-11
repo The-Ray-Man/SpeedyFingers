@@ -14,6 +14,7 @@ interface VideoComponentProps {
   shapeOpacity?: number;
   onCollisionDetected?: (hasCollision: boolean) => void;
   showControls?: boolean;
+  preloadCamera?: boolean; // Whether to start camera early (for preloading)
 }
 
 const VideoComponent: React.FC<VideoComponentProps> = ({ 
@@ -23,6 +24,7 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
   shapeOpacity = 0,
   onCollisionDetected,
   showControls = false,
+  preloadCamera = true, // Default to true for early loading
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,8 +62,10 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
     } = usePoseDetection(poseConfig);
 
 
-    // Start camera on mount
+    // Start camera on mount (or when preloadCamera becomes true)
     useEffect(() => {
+      if (!preloadCamera) return;
+      
       let mounted = true;
       async function startCamera() {
         try {
@@ -75,13 +79,13 @@ const VideoComponent: React.FC<VideoComponentProps> = ({
 
       return () => {
         mounted = false;
-        // stop tracks
+        // stop tracks only when component unmounts
         const stream = videoRef.current?.srcObject as MediaStream | null;
         if (stream) {
           stream.getTracks().forEach((t) => t.stop());
         }
       };
-    }, []);
+    }, [preloadCamera]);
 
     // Pose detection loop
     useEffect(() => {

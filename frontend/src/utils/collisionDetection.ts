@@ -28,8 +28,11 @@ export function checkKeypointCollision(
     case 'top-half':
       return y < canvasHeight / 2;
     
-    case 'bottom-half':
-      return y > canvasHeight / 2;
+    case 'top-third':
+      return y < canvasHeight / 3;
+    
+    case 'middle-third':
+      return y >= canvasHeight / 3 && y < (canvasHeight * 2) / 3;
     
     case 'top-left-quarter':
       return x < canvasWidth / 2 && y < canvasHeight / 2;
@@ -37,11 +40,30 @@ export function checkKeypointCollision(
     case 'top-right-quarter':
       return x > canvasWidth / 2 && y < canvasHeight / 2;
     
-    case 'bottom-left-quarter':
-      return x < canvasWidth / 2 && y > canvasHeight / 2;
+    case 'left-third':
+      return x < canvasWidth / 3;
     
-    case 'bottom-right-quarter':
-      return x > canvasWidth / 2 && y > canvasHeight / 2;
+    case 'middle-third-vertical':
+      return x >= canvasWidth / 3 && x < (canvasWidth * 2) / 3;
+    
+    case 'right-third':
+      return x > (canvasWidth * 2) / 3;
+    
+    case 'two-columns':
+      return x < canvasWidth / 4 || x > (canvasWidth * 3) / 4;
+    
+    case 'three-columns':
+      return x < canvasWidth / 5 || 
+             (x >= (canvasWidth * 2) / 5 && x < (canvasWidth * 3) / 5) ||
+             x >= (canvasWidth * 4) / 5;
+    
+    case 'diagonal-left':
+      // Point is above the diagonal line from top-left to bottom-right
+      return y < (x * canvasHeight) / canvasWidth;
+    
+    case 'diagonal-right':
+      // Point is above the diagonal line from top-right to bottom-left
+      return y < ((canvasWidth - x) * canvasHeight) / canvasWidth;
     
     case 'circle':
       if (shape.x !== undefined && shape.y !== undefined && shape.radius) {
@@ -88,56 +110,67 @@ export function checkAnyPoseCollision(
 
 /**
  * Generate a progressive sequence of shapes (easy to hard)
- * Shapes alternate to provide opposite patterns
+ * Shapes are designed for people standing on the ground who can move, duck, and bend
  */
 export function generateShapeSequence(count: number): Shape[] {
   const shapes: Shape[] = [];
   
-  // Easy shapes (halves) - alternating opposites
-  const easyPairs: Array<[Shape['type'], Shape['type']]> = [
-    ['right-half', 'left-half'],
-    ['top-half', 'bottom-half'],
-    ['left-half', 'right-half'],
-    ['bottom-half', 'top-half'],
+  // EASY LEVEL (Shapes 1-8): Simple halves and sides - people just move left/right
+  const easyShapes: Shape[] = [
+    { id: 'shape-0', type: 'right-half' },
+    { id: 'shape-1', type: 'left-half' },
+    { id: 'shape-2', type: 'left-half' },
+    { id: 'shape-3', type: 'right-half' },
+    { id: 'shape-4', type: 'top-half' }, // Duck
+    { id: 'shape-5', type: 'left-half' },
+    { id: 'shape-6', type: 'right-half' },
+    { id: 'shape-7', type: 'top-third' }, // Duck lower
   ];
   
-  for (let i = 0; i < Math.min(8, count); i++) {
-    const pairIndex = Math.floor(i / 2) % easyPairs.length;
-    const pair = easyPairs[pairIndex];
-    const type = pair[i % 2];
-    shapes.push({
-      id: `shape-${i}`,
-      type,
-    });
-  }
-  
-  // Medium shapes (quarters) - alternating opposites
-  const mediumPairs: Array<[Shape['type'], Shape['type']]> = [
-    ['top-left-quarter', 'bottom-right-quarter'],
-    ['top-right-quarter', 'bottom-left-quarter'],
-    ['bottom-left-quarter', 'top-right-quarter'],
-    ['bottom-right-quarter', 'top-left-quarter'],
+  // MEDIUM LEVEL (Shapes 9-14): Vertical thirds and quarters - more precision needed
+  const mediumShapes: Shape[] = [
+    { id: 'shape-8', type: 'left-third' },
+    { id: 'shape-9', type: 'right-third' },
+    { id: 'shape-10', type: 'middle-third-vertical' },
+    { id: 'shape-11', type: 'top-left-quarter' },
+    { id: 'shape-12', type: 'top-right-quarter' },
+    { id: 'shape-13', type: 'middle-third' }, // Duck to mid height
   ];
   
-  for (let i = 8; i < Math.min(16, count); i++) {
-    const pairIndex = Math.floor((i - 8) / 2) % mediumPairs.length;
-    const pair = mediumPairs[pairIndex];
-    const type = pair[(i - 8) % 2];
-    shapes.push({
-      id: `shape-${i}`,
-      type,
-    });
+  // HARD LEVEL (Shapes 15-19): Columns, diagonals, and circles - complex movements
+  const hardShapes: Shape[] = [
+    { id: 'shape-14', type: 'two-columns' }, // Stand between columns
+    { id: 'shape-15', type: 'diagonal-left' }, // Move to bottom-left
+    { id: 'shape-16', type: 'three-columns' }, // Stand in gaps
+    { id: 'shape-17', type: 'diagonal-right' }, // Move to bottom-right
+    { id: 'shape-18', type: 'two-columns' },
+    { id: 'shape-19', type: 'middle-third' }, // Final duck challenge
+  ];
+  
+  // Combine all shapes up to the requested count
+  const allShapes = [...easyShapes, ...mediumShapes, ...hardShapes];
+  
+  for (let i = 0; i < Math.min(count, allShapes.length); i++) {
+    shapes.push(allShapes[i]);
   }
   
-  // Hard shapes (mix) - continuing patterns
-  for (let i = 16; i < count; i++) {
-    const allPairs = [...easyPairs, ...mediumPairs];
-    const pairIndex = Math.floor((i - 16) / 2) % allPairs.length;
-    const pair = allPairs[pairIndex];
-    const type = pair[(i - 16) % 2];
+  // If more shapes requested, add circles at various positions (upper areas only)
+  for (let i = allShapes.length; i < count; i++) {
+    const positions = [
+      { x: 0.25, y: 0.3, radius: 0.15 }, // Upper left
+      { x: 0.75, y: 0.3, radius: 0.15 }, // Upper right
+      { x: 0.5, y: 0.25, radius: 0.2 },  // Upper center
+      { x: 0.2, y: 0.35, radius: 0.12 }, // Small upper left
+      { x: 0.8, y: 0.35, radius: 0.12 }, // Small upper right
+    ];
+    
+    const pos = positions[(i - allShapes.length) % positions.length];
     shapes.push({
       id: `shape-${i}`,
-      type,
+      type: 'circle',
+      x: pos.x * 640,  // Assuming typical canvas width
+      y: pos.y * 480,  // Assuming typical canvas height
+      radius: pos.radius * 400,
     });
   }
   

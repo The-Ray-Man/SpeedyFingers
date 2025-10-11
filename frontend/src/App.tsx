@@ -45,7 +45,7 @@ const App = () => {
           </Route>
         </Routes>
 
-         <FooterBar />
+         {/* <FooterBar /> */}
 
       </Router>
     </MusicProvider>

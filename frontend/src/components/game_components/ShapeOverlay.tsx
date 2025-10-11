@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react';
 
 export interface Shape {
   id: string;
-  type: 'left-half' | 'right-half' | 'top-half' | 'bottom-half' |
-        'top-left-quarter' | 'top-right-quarter' | 'bottom-left-quarter' | 'bottom-right-quarter' |
-        'circle' | 'rectangle';
+  type: 'left-half' | 'right-half' | 'top-half' | 'top-third' | 'middle-third' |
+        'top-left-quarter' | 'top-right-quarter' |
+        'left-third' | 'middle-third-vertical' | 'right-third' |
+        'circle' | 'rectangle' | 'two-columns' | 'three-columns' | 'diagonal-left' | 'diagonal-right';
   x?: number; // For positioned shapes
   y?: number;
   width?: number;
@@ -60,8 +61,11 @@ const ShapeOverlay: React.FC<ShapeOverlayProps> = ({
       case 'top-half':
         ctx.fillRect(0, 0, canvasWidth, canvasHeight / 2);
         break;
-      case 'bottom-half':
-        ctx.fillRect(0, canvasHeight / 2, canvasWidth, canvasHeight);
+      case 'top-third':
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight / 3);
+        break;
+      case 'middle-third':
+        ctx.fillRect(0, canvasHeight / 3, canvasWidth, canvasHeight / 3);
         break;
       case 'top-left-quarter':
         ctx.fillRect(0, 0, canvasWidth / 2, canvasHeight / 2);
@@ -69,11 +73,43 @@ const ShapeOverlay: React.FC<ShapeOverlayProps> = ({
       case 'top-right-quarter':
         ctx.fillRect(canvasWidth / 2, 0, canvasWidth / 2, canvasHeight / 2);
         break;
-      case 'bottom-left-quarter':
-        ctx.fillRect(0, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
+      case 'left-third':
+        ctx.fillRect(0, 0, canvasWidth / 3, canvasHeight);
         break;
-      case 'bottom-right-quarter':
-        ctx.fillRect(canvasWidth / 2, canvasHeight / 2, canvasWidth / 2, canvasHeight / 2);
+      case 'middle-third-vertical':
+        ctx.fillRect(canvasWidth / 3, 0, canvasWidth / 3, canvasHeight);
+        break;
+      case 'right-third':
+        ctx.fillRect((canvasWidth * 2) / 3, 0, canvasWidth / 3, canvasHeight);
+        break;
+      case 'two-columns':
+        // Two safe columns for people to stand between
+        ctx.fillRect(0, 0, canvasWidth / 4, canvasHeight);
+        ctx.fillRect((canvasWidth * 3) / 4, 0, canvasWidth / 4, canvasHeight);
+        break;
+      case 'three-columns':
+        // Three safe columns creating two gaps
+        ctx.fillRect(0, 0, canvasWidth / 5, canvasHeight);
+        ctx.fillRect((canvasWidth * 2) / 5, 0, canvasWidth / 5, canvasHeight);
+        ctx.fillRect((canvasWidth * 4) / 5, 0, canvasWidth / 5, canvasHeight);
+        break;
+      case 'diagonal-left':
+        // Diagonal from top-left to bottom-right
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(canvasWidth, canvasHeight);
+        ctx.lineTo(canvasWidth, 0);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'diagonal-right':
+        // Diagonal from top-right to bottom-left
+        ctx.beginPath();
+        ctx.moveTo(canvasWidth, 0);
+        ctx.lineTo(0, canvasHeight);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
         break;
       case 'circle':
         if (shape.x !== undefined && shape.y !== undefined && shape.radius) {
