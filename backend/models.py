@@ -14,3 +14,4 @@ class ScoreSubmission(BaseModel):
     score: int
     symbols: int
     game_mode: str  # "single" or "multi"
+    game_type: str  # "finger" or "body"

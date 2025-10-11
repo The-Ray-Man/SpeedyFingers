@@ -20,6 +20,7 @@ export type ScoreSubmission = {
   score: number;
   symbols: number;
   gameMode: "single" | "multi";
+  gameType?: "finger" | "body";
 };
 
 /**
@@ -38,6 +39,7 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
       score: submission.score,
       symbols: submission.symbols,
       game_mode: submission.gameMode,
+      game_type: submission.gameType || "finger",
     }),
   });
 
@@ -50,7 +52,7 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
 }
 
 /**
- * Get the single player leaderboard
+ * Get the single player leaderboard (legacy - defaults to finger game)
  * @returns Array of single player leaderboard entries
  */
 export async function getSinglePlayerLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -64,7 +66,7 @@ export async function getSinglePlayerLeaderboard(): Promise<LeaderboardEntry[]> 
 }
 
 /**
- * Get the multi player leaderboard
+ * Get the multi player leaderboard (legacy - defaults to finger game)
  * @returns Array of multi player leaderboard entries
  */
 export async function getMultiPlayerLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -72,6 +74,36 @@ export async function getMultiPlayerLeaderboard(): Promise<LeaderboardEntry[]> {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch multi player leaderboard: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get the single player leaderboard for a specific game type
+ * @param gameType Type of game ("finger" or "body")
+ * @returns Array of single player leaderboard entries
+ */
+export async function getGameSinglePlayerLeaderboard(gameType: "finger" | "body"): Promise<LeaderboardEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/leaderboard/${gameType}/single`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${gameType} single player leaderboard: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get the multi player leaderboard for a specific game type
+ * @param gameType Type of game ("finger" or "body")
+ * @returns Array of multi player leaderboard entries
+ */
+export async function getGameMultiPlayerLeaderboard(gameType: "finger" | "body"): Promise<LeaderboardEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/leaderboard/${gameType}/multi`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${gameType} multi player leaderboard: ${response.statusText}`);
   }
 
   return response.json();
