@@ -188,7 +188,7 @@ const PlayOptions = () => {
   // Reset visual progress on intention switch
   setHoldProgress(0);
       if (intention) {
-        console.log("[PlayOptions] intention:", intention);
+       
       }
       return;
     }
@@ -197,7 +197,7 @@ const PlayOptions = () => {
     if (intention && intention !== "conflict" && startTimeRef.current != null) {
       const elapsed = Date.now() - startTimeRef.current;
       const progress = Math.min(elapsed / 3100, 1);
-      console.log("[PlayOptions] progress:", { intention, progress });
+      
       // Update unified progress regardless of intention
       setHoldProgress(progress);
       if (progress >= 1) {
