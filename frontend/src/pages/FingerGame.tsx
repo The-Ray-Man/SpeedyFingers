@@ -23,7 +23,7 @@ import { Toaster, toaster } from "@/components/ui/toaster";
 import { useUser } from "@/context/UserContext";
 import { useRewardSound } from "../context/rewardSoundContext";
 
-const GAME_DURATION = 60; // 60 seconds
+const GAME_DURATION = 45; // 45 seconds
 const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
 const PlayMode: React.FC = () => {
@@ -85,8 +85,8 @@ const PlayMode: React.FC = () => {
         hands.setOptions({
           maxNumHands: 2,
           modelComplexity: 1,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          minDetectionConfidence: 0.3,
+          minTrackingConfidence: 0.3,
         });
 
         hands.onResults(onHandsResults);
