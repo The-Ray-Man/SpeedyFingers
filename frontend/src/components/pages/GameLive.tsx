@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitScore } from "@/leaderboardApi";
+import { useRewardSound } from "../../context/rewardSoundContext";
+import { number } from "framer-motion";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
@@ -477,6 +479,7 @@ declare global {
 }
 
 const GameLive = () => {
+  const { playSound } = useRewardSound();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const startButtonRef = useRef<HTMLButtonElement>(null);
@@ -1776,6 +1779,7 @@ const GameLive = () => {
         }
 
         if (collected && collectorId) {
+          playSound("collectPoint");
           increaseScore(collectorId, coin.value);
           incrementPlayerCoins(collectorId);
           spawnCoinEffect(now, coin);
@@ -2041,6 +2045,14 @@ const GameLive = () => {
         return;
       }
 
+      try {
+        // Map playerId to correct sound type
+        const soundType: 'gesture_match' | 'playerTwo' = playerId === 1 ? 'gesture_match' : 'playerTwo';
+        console.log(soundType)
+        playSound(soundType);
+      } catch (error) {
+        console.error("Failed to play reward sound:", error);
+      }
       increaseScore(playerId, 2);
       assignRandomTarget(playerId);
     }

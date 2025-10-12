@@ -1,4 +1,4 @@
-import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   Box,
   Button,
@@ -7,19 +7,23 @@ import {
   Text,
   VStack,
   SimpleGrid,
-  Stack,
   Flex,
   Spinner,
-  HStack
+  HStack,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import {
   getGameSinglePlayerLeaderboard,
   getGameMultiPlayerLeaderboard,
-  type LeaderboardEntry
+  type LeaderboardEntry,
 } from "@/leaderboardApi";
 import { useGesture } from "@/context/GestureContext";
-import { keyframes } from "@emotion/react";
+import { type TwoHandGestureState } from "@/context/GestureService";
+import { ModeColumn } from "@/components/playoptions/ModeColumn";
+
+type GestureIntention = "single" | "multi" | "back" | "conflict" | null;
+import HomeButton from "../components/design/ToHome.tsx";
+import MusicButton from "../components/design/MusicButton.tsx";
 
 const PlayOptions = () => {
   const navigate = useNavigate();
@@ -27,130 +31,20 @@ const PlayOptions = () => {
   const [liveGameBoard, setLiveGameBoard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { gesture, enabled, toggleGesture, loading: gestureLoading } = useGesture();
-  const HOLD_DURATION_MS = 3200;
-  const [singleProgress, setSingleProgress] = useState(0);
-  const [multiProgress, setMultiProgress] = useState(0);
-  const singleStartRef = useRef<number | null>(null);
-  const multiStartRef = useRef<number | null>(null);
-  const triggeredRef = useRef<{ single: boolean; multi: boolean }>({ single: false, multi: false });
-  const autoManagedRef = useRef(false);
-  const latestEnabledRef = useRef(enabled);
-  const permissionRequestedRef = useRef(false);
+  const { gesture, setGestureEnabled } = useGesture();
+  const [currentIntention, setCurrentIntention] = useState<GestureIntention>(null);
+  const startTimeRef = useRef<number | null>(null);
+  // Visual progress for each mode button (0..1)
+  const [singleHoldProgress, setSingleHoldProgress] = useState(0);
+  const [multiHoldProgress, setMultiHoldProgress] = useState(0);
 
+  // Enable gesture tracking on mount
   useEffect(() => {
-    latestEnabledRef.current = enabled;
-  }, [enabled]);
-
-  useEffect(() => {
-    if (gestureLoading || permissionRequestedRef.current) {
-      return;
-    }
-    permissionRequestedRef.current = true;
-    if (!navigator.mediaDevices?.getUserMedia) {
-      return;
-    }
-    void (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err) {
-        console.error("[PlayOptions] Camera access request failed:", err);
-      }
-    })();
-  }, [gestureLoading]);
-
-  useEffect(() => {
-    if (gestureLoading) {
-      return;
-    }
-    if (!autoManagedRef.current) {
-      if (!latestEnabledRef.current) {
-        toggleGesture();
-      }
-      autoManagedRef.current = true;
-    }
-
+    setGestureEnabled(true);
     return () => {
-      if (autoManagedRef.current) {
-        if (latestEnabledRef.current) {
-          toggleGesture();
-        }
-        autoManagedRef.current = false;
-      }
+      setGestureEnabled(false);
     };
-  }, [gestureLoading, toggleGesture]);
-
-  const updateHold = (
-    key: "single" | "multi",
-    active: boolean,
-    startRef: MutableRefObject<number | null>,
-    setProgress: Dispatch<SetStateAction<number>>,
-    onComplete: () => void,
-    now: number
-  ) => {
-    if (active) {
-      if (startRef.current === null) {
-        startRef.current = now;
-      }
-      const elapsed = now - startRef.current;
-      const progress = Math.min(1, elapsed / HOLD_DURATION_MS);
-      setProgress(progress);
-      if (progress >= 1 && !triggeredRef.current[key]) {
-        triggeredRef.current[key] = true;
-        onComplete();
-      }
-    } else {
-      startRef.current = null;
-      if (triggeredRef.current[key]) {
-        triggeredRef.current[key] = false;
-      }
-      setProgress(0);
-    }
-  };
-
-  useEffect(() => {
-    const now = performance.now();
-    const left = gesture?.left;
-    const right = gesture?.right;
-
-    const getFingerCount = (hand: typeof left) =>
-      hand?.type === "FINGERS_UP" ? hand.count ?? null : null;
-
-    const leftCount = getFingerCount(left);
-    const rightCount = getFingerCount(right);
-
-    const multiActive =
-      leftCount !== null &&
-      rightCount !== null &&
-      leftCount >= 2 &&
-      rightCount >= 2;
-
-    let singleActive =
-      (leftCount === 1 || rightCount === 1) && !multiActive;
-
-    const hasGesture = !!gesture;
-    if (!hasGesture) {
-      singleActive = false;
-    }
-
-    updateHold(
-      "single",
-      singleActive,
-      singleStartRef,
-      setSingleProgress,
-      () => navigate("/game-1"),
-      now
-    );
-    updateHold(
-      "multi",
-      multiActive,
-      multiStartRef,
-      setMultiProgress,
-      () => navigate("/live_game"),
-      now
-    );
-  }, [gesture, navigate]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,7 +53,7 @@ const PlayOptions = () => {
       try {
         const [single, multi] = await Promise.all([
           getGameSinglePlayerLeaderboard("finger"),
-          getGameMultiPlayerLeaderboard("finger")
+          getGameMultiPlayerLeaderboard("finger"),
         ]);
         if (!cancelled) {
           setSinglePlayerBoard(single);
@@ -182,6 +76,119 @@ const PlayOptions = () => {
       cancelled = true;
     };
   }, []);
+
+  // Interpret gesture intention from gesture state
+  const interpretIntention = useMemo(() => {
+    return (gest: TwoHandGestureState | null): GestureIntention => {
+      if (!gest) return null;
+      const { firstHand, secondHand } = gest;
+
+      // No hands detected
+      if (!firstHand && !secondHand) return null;
+
+      // Helper to check if gesture is one finger up
+      const isOneFinger = (hand: typeof firstHand) =>
+        hand?.type === "FINGERS_UP" && hand.count === 1;
+
+      // Helper to check if gesture is two fingers up
+      const isTwoFingers = (hand: typeof firstHand) =>
+        hand?.type === "FINGERS_UP" && hand.count === 2;
+
+      // Helper to check if gesture is thumbs down
+      const isThumbsDown = (hand: typeof firstHand) =>
+        hand?.type === "THUMBS_DOWN";
+
+      // Helper to check if gesture is neutral/unused
+      const isNeutral = (hand: typeof firstHand) =>
+        !hand ||
+        (hand.type === "FINGERS_UP" && hand.count !== 1 && hand.count !== 2) ||
+        hand.type === "ILOVEYOU" ||
+        hand.type === "THUMBS_UP" ||
+        hand.type === "HEART";
+
+      // Both hands with same intention
+      if (firstHand && secondHand) {
+        // Both one finger -> single player
+        if (isOneFinger(firstHand) && isOneFinger(secondHand)) return "single";
+        // Both two fingers -> multiplayer
+        if (isTwoFingers(firstHand) && isTwoFingers(secondHand)) return "multi";
+        // Both thumbs down -> back
+        if (isThumbsDown(firstHand) && isThumbsDown(secondHand)) return "back";
+        // One finger on one hand, neutral on other -> single
+        if (
+          (isOneFinger(firstHand) && isNeutral(secondHand)) ||
+          (isNeutral(firstHand) && isOneFinger(secondHand))
+        )
+          return "single";
+        // Two fingers on one hand, neutral on other -> show "1/2 players selecting"
+        if (
+          (isTwoFingers(firstHand) && isNeutral(secondHand)) ||
+          (isNeutral(firstHand) && isTwoFingers(secondHand))
+        )
+          return null; // Not ready yet
+        // Thumbs down on one hand, neutral on other -> back
+        if (
+          (isThumbsDown(firstHand) && isNeutral(secondHand)) ||
+          (isNeutral(firstHand) && isThumbsDown(secondHand))
+        )
+          return "back";
+        // Conflicting gestures
+        return "conflict";
+      }
+
+      // Single hand
+      if (isOneFinger(firstHand) || isOneFinger(secondHand)) return "single";
+      if (isTwoFingers(firstHand) || isTwoFingers(secondHand)) return null; // Need two hands for multi
+      if (isThumbsDown(firstHand) || isThumbsDown(secondHand)) return "back";
+      return null;
+    };
+  }, []);
+
+  // State machine: track gesture hold without animation frames
+  useEffect(() => {
+    const intention = interpretIntention(gesture);
+
+    // Intention changed -> reset and (if valid) start new window
+    if (intention !== currentIntention) {
+      setCurrentIntention(intention);
+      startTimeRef.current = intention && intention !== "conflict" ? Date.now() : null;
+      // Reset visual progress on intention switch
+      setSingleHoldProgress(0);
+      setMultiHoldProgress(0);
+      if (intention) {
+        console.log("[PlayOptions] intention:", intention);
+      }
+      return;
+    }
+
+    // Same intention -> compute and log progress on this update tick
+    if (intention && intention !== "conflict" && startTimeRef.current != null) {
+      const elapsed = Date.now() - startTimeRef.current;
+      const progress = Math.min(elapsed / 4000, 1);
+      console.log("[PlayOptions] progress:", { intention, progress });
+      // Update per-mode visual progress
+      if (intention === "single") {
+        setSingleHoldProgress(progress);
+        if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+      } else if (intention === "multi") {
+        setMultiHoldProgress(progress);
+        if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+      } else {
+        // back or others -> clear both
+        if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+        if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+      }
+      if (progress >= 1) {
+        if (intention === "single") navigate("/game-1");
+        else if (intention === "multi") navigate("/live_game");
+        else if (intention === "back") navigate("/");
+        startTimeRef.current = null;
+        // Clear visual progress after navigation trigger
+        setSingleHoldProgress(0);
+        setMultiHoldProgress(0);
+      }
+    }
+  }, [gesture, navigate ]);
 
   return (
     <Box
@@ -210,7 +217,7 @@ const PlayOptions = () => {
             </VStack>
             <Heading size="5xl">☝️<Text fontSize={"md"} position="absolute" transform="translate(3em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
           </HStack>
-
+          {/* Visual feedback temporarily removed – logging progress to console only */}
           {loading ? (
             <Flex justify="center" align="center" py={16}>
               <Spinner size="xl" color="purple.400" />
@@ -229,7 +236,6 @@ const PlayOptions = () => {
                   {error}
                 </Box>
               )}
-
               <SimpleGrid columns={{ base: 1, lg: 2 }} gap={8} alignItems="stretch">
                 <ModeColumn
                   highlight
@@ -239,7 +245,7 @@ const PlayOptions = () => {
                   onClick={() => navigate("/live_game")}
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
-                  selectionProgress={multiProgress}
+                  holdProgress={multiHoldProgress}
                 />
                 <ModeColumn
                   title="Single Player Challenge"
@@ -248,220 +254,16 @@ const PlayOptions = () => {
                   onClick={() => navigate("/game-1")}
                   entries={singlePlayerBoard}
                   emptyMessage="No solo scores yet. Set the benchmark!"
-                  selectionProgress={singleProgress}
+                  holdProgress={singleHoldProgress}
+                  
                 />
               </SimpleGrid>
             </>
           )}
         </VStack>
       </Container>
+      <MusicButton></MusicButton>
     </Box>
-  );
-};
-
-interface ModeColumnProps {
-  title: string;
-  description: string;
-  ctaLabel: string;
-  onClick: () => void;
-  entries: LeaderboardEntry[];
-  emptyMessage: string;
-  highlight?: boolean;
-  selectionProgress?: number;
-}
-
-const selectionPulse = keyframes`
-  0% {
-    box-shadow: 0 0 0 0 rgba(120, 255, 180, 0.45), 0 0 18px rgba(120, 255, 180, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(120, 255, 180, 0.2), 0 0 26px rgba(120, 255, 180, 0.55);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(120, 255, 180, 0.45), 0 0 18px rgba(120, 255, 180, 0.35);
-  }
-`;
-
-const ModeColumn = ({
-  title,
-  description,
-  ctaLabel,
-  onClick,
-  entries,
-  emptyMessage,
-  highlight = false,
-  selectionProgress = 0
-}: ModeColumnProps) => {
-  const safeProgress = Math.max(0, Math.min(1, selectionProgress));
-  const isSelecting = safeProgress > 0;
-
-  return (
-    <Box
-      position="relative"
-      borderRadius="2xl"
-      boxShadow={
-        highlight
-          ? "0 24px 60px rgba(56, 54, 108, 0.55)"
-          : "0 10px 30px rgba(20, 30, 45, 0.16)"
-      }
-      bg={
-        highlight
-          ? "linear-gradient(140deg, rgba(110, 85, 255, 0.35), rgba(30, 180, 255, 0.2))"
-          : "white"
-      }
-      _dark={{
-        bg: highlight
-          ? "linear-gradient(140deg, rgba(120, 95, 255, 0.35), rgba(40, 200, 255, 0.2))"
-          : "rgba(20, 24, 36, 0.75)"
-      }}
-      border={
-        highlight
-          ? "1px solid rgba(140, 200, 255, 0.35)"
-          : "1px solid rgba(255, 255, 255, 0.08)"
-      }
-      p={{ base: 6, md: 8 }}
-      display="flex"
-      flexDirection="column"
-      gap={6}
-      transition="transform 0.3s ease, box-shadow 0.3s ease"
-      transform={isSelecting ? "translateY(-6px)" : undefined}
-      animation={isSelecting ? `${selectionPulse} 2.4s ease-in-out infinite` : undefined}
-      overflow="hidden"
-    >
-      {isSelecting && (
-        <Box
-          position="absolute"
-          inset={0}
-          pointerEvents="none"
-          bgGradient="linear(to-br, rgba(120, 255, 180, 0.12), transparent 55%)"
-          zIndex={0}
-        />
-      )}
-
-      <VStack align="flex-start" gap={3} position="relative" zIndex={1}>
-        <Heading size="lg">{title}</Heading>
-        <Text
-          color={highlight ? "rgba(240, 248, 255, 0.92)" : "gray.600"}
-          _dark={{ color: "gray.300" }}
-        >
-          {description}
-        </Text>
-        <Button
-          colorScheme={highlight ? "purple" : "blue"}
-          size="lg"
-          onClick={onClick}
-          alignSelf="flex-start"
-        >
-          {ctaLabel}
-        </Button>
-      </VStack>
-
-      <Box
-        mt={2}
-        borderRadius="xl"
-        border="1px solid rgba(255, 255, 255, 0.12)"
-        bg={highlight ? "rgba(15, 20, 38, 0.45)" : "rgba(240, 242, 255, 0.65)"}
-        _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.55)" : "rgba(25, 30, 48, 0.65)" }}
-        px={{ base: 4, md: 5 }}
-        py={{ base: 4, md: 5 }}
-        position="relative"
-        zIndex={1}
-      >
-        <Heading
-          size="sm"
-          mb={3}
-          textTransform="uppercase"
-          letterSpacing="0.18em"
-          color="rgba(220, 230, 255, 0.85)"
-        >
-          Leaderboard
-        </Heading>
-        <LeaderboardList entries={entries} emptyMessage={emptyMessage} highlight={highlight} />
-      </Box>
-
-      {isSelecting && (
-        <Box
-          position="absolute"
-          bottom={{ base: 4, md: 6 }}
-          left="12%"
-          right="12%"
-          height="6px"
-          borderRadius="full"
-          bg="rgba(255, 255, 255, 0.2)"
-          overflow="hidden"
-          zIndex={1}
-        >
-          <Box
-            height="100%"
-            borderRadius="inherit"
-            bgGradient="linear(to-r, #78ffb4, #4cc3ff)"
-            width={`${safeProgress * 100}%`}
-            transition="width 0.15s ease-out"
-          />
-        </Box>
-      )}
-    </Box>
-  );
-};
-
-interface LeaderboardListProps {
-  entries: LeaderboardEntry[];
-  emptyMessage: string;
-  highlight?: boolean;
-}
-
-const LeaderboardList = ({ entries, emptyMessage, highlight = false }: LeaderboardListProps) => {
-  if (!entries.length) {
-    return (
-      <Text fontSize="sm" color={highlight ? "rgba(220, 235, 255, 0.85)" : "rgba(60, 70, 110, 0.8)"}>
-        {emptyMessage}
-      </Text>
-    );
-  }
-
-  return (
-    <Stack gap={3}>
-      {entries.slice(0, 3).map(entry => (
-        <Flex
-          key={`${entry.rank}-${entry.name ?? entry.team ?? entry.score}`}
-          justify="space-between"
-          align="center"
-          gap={4}
-          px={3}
-          py={2}
-          borderRadius="md"
-          bg={highlight ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.6)"}
-          _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.6)" : "rgba(12, 16, 28, 0.5)" }}
-        >
-          <Flex align="center" gap={3}>
-            <Flex
-              align="center"
-              justify="center"
-              w={9}
-              h={9}
-              borderRadius="full"
-              bg={highlight ? "purple.500" : "blue.500"}
-              color="white"
-              fontWeight="bold"
-              fontSize="sm"
-            >
-              {entry.rank}
-            </Flex>
-            <VStack align="flex-start" gap={0}>
-              <Text fontWeight="semibold" fontSize="sm">
-                {entry.name ?? entry.team ?? "Unknown"}
-              </Text>
-              <Text fontSize="xs" color={highlight ? "rgba(220, 235, 255, 0.75)" : "rgba(70, 80, 120, 0.75)"}>
-                Symbols: {entry.symbols}
-              </Text>
-            </VStack>
-          </Flex>
-          <Text fontWeight="bold" fontSize="lg" color="#ffe066">
-            {entry.score}
-          </Text>
-        </Flex>
-      ))}
-    </Stack>
   );
 };
 
