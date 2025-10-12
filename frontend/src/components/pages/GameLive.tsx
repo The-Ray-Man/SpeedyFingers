@@ -295,6 +295,7 @@ const GAME_LIVE_STYLES = `
 }
 
 .game-live-page .timebar {
+  margin-top: 1em;
   position: relative;
   width: min(100%, 640px);
   height: 45px;
@@ -640,9 +641,9 @@ const GameLive = () => {
     }
     const canvasCtx = context as CanvasRenderingContext2D;
 
-    const READY_PROMPT_INITIAL = "Press Start or show 👍👍 to begin.";
-    const READY_PROMPT_READY = "Camera ready!<br/>Press Start or show 👍👍 to begin.";
-    const READY_PROMPT_REPLAY = "Great run!<br/>Press Start or show 👍👍 to play again.";
+    const READY_PROMPT_INITIAL = "Press Start or show 👍👍 (each) to begin. <br/><br/> Match as many gestures as possible.";
+    const READY_PROMPT_READY = "Camera ready!<br/>Press Start or show 👍👍 (each) to begin. <br/><br/> Match as many gestures as possible.";
+    const READY_PROMPT_REPLAY = "Great run!<br/>Press Start or show 👍👍 (each) to play again. <br/><br/> Match as many gestures as possible.";
 
     const startPostGameCountdown = () => {
       if (!postGameDeadlineRef.current) {
@@ -670,7 +671,7 @@ const GameLive = () => {
       winnerId: number,
       score: number,
       symbols: number,
-      statusMessage = "Great run! Enter your team name to submit the win, show 👍👍 to play again, or show 👎 to return to the menu."
+      statusMessage = "Great run! Enter your team name to submit the win, show 👍👍 to play again, or show 👎👎 to return to the menu."
     ) => {
       postGameDeadlineRef.current = performance.now() + POST_GAME_TIMEOUT_MS;
       setTeamName(winnerId === 1 ? "Player 1" : "Player 2");
@@ -2209,7 +2210,7 @@ const GameLive = () => {
                       />
                     </div>
                     <p style={{ color: "rgba(255, 205, 205, 0.85)", fontSize: "0.9rem", margin: 0 }}>
-                      Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s · show 👎 to return now
+                      Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s · show 👎👎 each to return now
                     </p>
 
                     <label style={{ fontSize: "0.95rem", color: "rgba(235, 245, 255, 0.85)" }}>
@@ -2240,7 +2241,7 @@ const GameLive = () => {
                       </button>
                     </div>
                     <div style={{display: "flex", justifyContent: "center", marginTop: "0.6rem", fontSize: "0.85rem", color: "rgba(200, 220, 255, 0.75)"}}>
-                      To play again, give a 👍 each with both hands
+                      To play again, each give a 👍👍
                     </div>
                   </div>
                 </div>

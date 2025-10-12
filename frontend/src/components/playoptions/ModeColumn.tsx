@@ -32,29 +32,31 @@ export const ModeColumn = ({
       
     <Box
       position="absolute"
-      bg="black"
+      bg="rgb(59, 130, 246)"//#5f58d9"
       h={`${holdProgress * 100}%`}
       w={`${holdProgress * 100}%`}
       top="-2"
       left="-2"
-        borderRadius="2xl"
-        zIndex={0}
-        pointerEvents="none"
-        style={{
+      borderRadius="2xl"
+      zIndex={0}
+      pointerEvents="none"
+      boxShadow="0 0 20px #5f58d9"
+      style={{
         transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}
-      ></Box>
+    ></Box>
       <Box
       position="absolute"
-      bg="black"
+      bg="rgb(59, 130, 246)"//"#5f58d9"
       h={`${holdProgress * 100}%`}
       w={`${holdProgress * 100}%`}
       bottom="-2"
       right="-2"
-        borderRadius="2xl"
-        zIndex={0}
-        pointerEvents="none"
-        style={{
+      borderRadius="2xl"
+      zIndex={0}
+      pointerEvents="none"
+      boxShadow="0 0 20px #5f58d9"
+      style={{
         transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}
       ></Box>
@@ -64,21 +66,19 @@ export const ModeColumn = ({
       borderRadius="2xl"
       boxShadow={highlight ? "0 20px 50px rgba(56, 54, 108, 0.35)" : "xl"}
       // Make highlight gradient opaque so nothing shows through
-      bg={highlight ? "linear-gradient(140deg, #6E5AFF 0%, #24B7FF 100%)" : "white"}
+      bg={highlight ? "linear-gradient(140deg, #191032ff 0%, #1d3a63ff 100%)" : "rgba(248, 248, 255, 0.85)"}
       _dark={{
         bg: highlight
-          ? "linear-gradient(140deg, #7A62FF 0%, #30D0FF 100%)"
-          : "rgba(20, 24, 36, 0.92)"
+          ? "linear-gradient(140deg, #191032ff 0%, #1d3a63ff 100%)"
+          : "rgba(22, 26, 38, 1)"
       }}
-      border={highlight ? "1px solid rgba(140, 200, 255, 0.55)" : "1px solid rgba(255, 255, 255, 0.08)"}
+      border={highlight ? "1px solid rgba(62, 67, 72, 0.55)" : "1px solid rgba(255, 255, 255, 0.08)"}
       p={{ base: 6, md: 8 }}
       display="flex"
       flexDirection="column"
       gap={6}
       overflow="hidden"
     >
-    
-      
 
       <VStack align="flex-start" gap={3} position="relative" zIndex={1}>
         <Heading size="lg">{title}</Heading>
@@ -93,12 +93,6 @@ export const ModeColumn = ({
             top={0}
             bottom={0}
             width={`${Math.max(0, Math.min(1, holdProgress)) * 100}%`}
-            bg={
-              highlight
-                ? "linear-gradient(90deg, #5E4BFF 0%, #25D0FF 100%)"
-                : "linear-gradient(90deg, #4F8CFF 0%, #34D1BF 100%)"
-            }
-            transition="width 0.24s cubic-bezier(0.22,1,0.36,1)"
             willChange="width"
             pointerEvents="none"
             zIndex={0}
