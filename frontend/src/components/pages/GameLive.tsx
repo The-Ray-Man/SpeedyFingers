@@ -378,7 +378,7 @@ const GAME_LIVE_STYLES = `
 }
 
 .game-live-page .post-game-card {
-  width: min(100%, 520px);
+  width: min(100%, 620px);
   padding: 1.75rem 2rem;
   border-radius: 24px;
   background: linear-gradient(150deg, rgba(30, 32, 60, 0.9), rgba(45, 48, 88, 0.82));
@@ -639,7 +639,6 @@ const GameLive = () => {
     const READY_PROMPT_INITIAL = "Press Start to enable camera access.";
     const READY_PROMPT_READY = "Camera ready!<br/>Press Start again or show 👍👍 to begin.";
     const READY_PROMPT_REPLAY = "Great run!<br/>Press Start or show 👍👍 to play again.";
-    const FEEDBACK_DURATION = 1200;
 
     const startPostGameCountdown = () => {
       if (!postGameDeadlineRef.current) {
@@ -847,8 +846,8 @@ const GameLive = () => {
     const gestureLookup = Object.fromEntries(gestureVocabulary.map(item => [item.id, item]));
     const DOUBLE_GESTURE_RATE = 0.4;
     const GAME_DURATION_MS = 90_000;
-    const COIN_MIN_INTERVAL_MS = 2200;
-    const COIN_MAX_INTERVAL_MS = 3600;
+    const COIN_MIN_INTERVAL_MS = 1400;
+    const COIN_MAX_INTERVAL_MS = 2400;
     const COIN_LIFETIME_MS = 3000;
     const COIN_BLINK_MS = 1500;
     const YOUTUBE_VIDEO_ID = "XnygT6ANLzQ";
@@ -871,8 +870,8 @@ const GameLive = () => {
     let lastRenderTimestamp: number | null = null;
     const coins: any[] = [];
     const coinEffects: any[] = [];
-    const floatingFeedbacks: Array<{ player: number; text: string; spawn: number }> = [];
     const playerCoinCounts: Record<number, number> = { 1: 0, 2: 0 };
+    const coinsSpawnedForPlayer: Record<number, number> = { 1: 0, 2: 0 };
     const lastPlayerThumbTime: Record<number, number> = { 1: 0, 2: 0 };
     let coinsSinceSpecial = 0;
     let nextCoinFavor: 1 | 2 = 1;
@@ -1262,7 +1261,6 @@ const GameLive = () => {
 
       updateCoins(nowInMs, deltaSeconds, processedHands);
       drawCoins(nowInMs);
-      drawFloatingFeedback(nowInMs);
 
       canvasCtx.restore();
     }
@@ -1592,20 +1590,6 @@ const GameLive = () => {
       }, highlightDurationMs);
     }
 
-    function showCanvasFeedback(playerId: number, target: any) {
-      const emoji = Array.isArray(target?.gestures) && target.gestures.length
-        ? target.gestures.map((item: { emoji: string }) => item.emoji).join(" ")
-        : "⭐";
-      floatingFeedbacks.push({
-        player: playerId,
-        text: emoji || "⭐",
-        spawn: performance.now()
-      });
-      if (floatingFeedbacks.length > 12) {
-        floatingFeedbacks.splice(0, floatingFeedbacks.length - 12);
-      }
-    }
-
     function enqueueAudioAction(action: () => void) {
       if (ytReady && ytPlayer) {
         action();
@@ -1661,6 +1645,7 @@ const GameLive = () => {
       Object.keys(playerCoinCounts).forEach(id => {
         const numericId = Number(id);
         playerCoinCounts[numericId] = 0;
+        coinsSpawnedForPlayer[numericId] = 0;
         updatePlayerCoinDisplay(numericId);
       });
       Object.keys(skeletonHighlightStartRef.current).forEach(id => {
@@ -1704,6 +1689,7 @@ const GameLive = () => {
           state.satisfied = false;
           state.currentTarget = null;
         }
+        coinsSpawnedForPlayer[playerId] = 0;
         skeletonHighlightStartRef.current[playerId] = 0;
         skeletonHighlightUntilRef.current[playerId] = 0;
       });
@@ -1832,38 +1818,6 @@ const GameLive = () => {
       });
     }
 
-    function drawFloatingFeedback(now: number) {
-      for (let i = floatingFeedbacks.length - 1; i >= 0; i -= 1) {
-        const effect = floatingFeedbacks[i];
-        const age = now - effect.spawn;
-        if (age >= FEEDBACK_DURATION) {
-          floatingFeedbacks.splice(i, 1);
-          continue;
-        }
-        const progress = age / FEEDBACK_DURATION;
-        const opacity = 1 - progress;
-        const offsetY = progress * 40;
-        const baseX = effect.player === 1 ? canvasElement.width * 0.28 : canvasElement.width * 0.72;
-        const baseY = canvasElement.height * 0.28 - offsetY;
-
-        canvasCtx.save();
-        canvasCtx.translate(canvasElement.width, 0);
-        canvasCtx.scale(-1, 1);
-        canvasCtx.globalAlpha = opacity;
-        const fontSize = Math.max(42, 72 - progress * 24);
-        canvasCtx.font = `700 ${fontSize}px 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif`;
-        canvasCtx.textAlign = "center";
-        canvasCtx.lineWidth = 6;
-        canvasCtx.strokeStyle = "rgba(10, 15, 30, 0.55)";
-        canvasCtx.fillStyle = "rgba(255, 255, 255, 0.96)";
-        const drawX = baseX;
-        canvasCtx.strokeText(effect.text, drawX, baseY);
-        canvasCtx.fillText(effect.text, drawX, baseY);
-        canvasCtx.restore();
-      }
-      canvasCtx.globalAlpha = 1;
-    }
-
     function drawCoinSplash(effect: any, age: number) {
       const progress = Math.min(1, age / effect.lifetime);
       const baseRadius = effect.radius;
@@ -1895,8 +1849,13 @@ const GameLive = () => {
     function spawnCoin(now: number) {
       const p1Coins = playerCoinCounts[1] ?? 0;
       const p2Coins = playerCoinCounts[2] ?? 0;
+      const spawnBalance = (coinsSpawnedForPlayer[1] ?? 0) - (coinsSpawnedForPlayer[2] ?? 0);
       let targetPlayer: 1 | 2;
-      if (p1Coins < p2Coins) {
+      if (spawnBalance > 0) {
+        targetPlayer = 2;
+      } else if (spawnBalance < 0) {
+        targetPlayer = 1;
+      } else if (p1Coins < p2Coins) {
         targetPlayer = 1;
       } else if (p2Coins < p1Coins) {
         targetPlayer = 2;
@@ -1904,6 +1863,7 @@ const GameLive = () => {
         targetPlayer = nextCoinFavor;
         nextCoinFavor = targetPlayer === 1 ? 2 : 1;
       }
+      coinsSpawnedForPlayer[targetPlayer] = (coinsSpawnedForPlayer[targetPlayer] ?? 0) + 1;
 
       const baseX =
         targetPlayer === 1
@@ -1987,7 +1947,6 @@ const GameLive = () => {
         if (state.currentTarget && nextSatisfied) {
           if (justSatisfied) {
             flashPanelHighlight(playerId);
-            showCanvasFeedback(playerId, target);
           }
           completePlayerTarget(playerId);
         } else {
@@ -2225,6 +2184,9 @@ const GameLive = () => {
                       <button type="button" onClick={exitToMenu}>
                         Skip & Return
                       </button>
+                    </div>
+                    <div style={{display: "flex", justifyContent: "center", marginTop: "0.6rem", fontSize: "0.85rem", color: "rgba(200, 220, 255, 0.75)"}}>
+                      To play again, give a 👍 each with both hands
                     </div>
                   </div>
                 </div>

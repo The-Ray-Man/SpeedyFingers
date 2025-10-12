@@ -1,1 +1,1 @@
-* Make a correct classification more visually present (green box)
+* Animation to selet a game in the beginning
