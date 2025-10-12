@@ -72,25 +72,25 @@ const Tutorial: React.FC = () => {
         {
             title: "1️⃣ START THE GAME:",
             description: "Hold two Thumbs up to start the game❗ (or be boring and just press Start )",
-            image: "/imgs/pic1.png",
+            image: "/pic1.png",
             content: null
         },
         {
             title: "2️⃣ GOAL:",
             description: "Try your best to recreate the symbols 🔍",
-            image: "/imgs/pic2.png",
+            image: "/pic2.png",
             content: null
         },
         {
             title: "3️⃣ ACCURACY:",
             description: "see how the computer is interpreting your signs 🎯",
-            image: "/imgs/pic3.png",
+            image: "/pic3.png",
             content: null
         },
         {
             title: "4️⃣ BONUS POINTS:",
             description: "Try to collect the coins for extra points 🎉",
-             image: "/imgs/pic4.png",
+             image: "/pic4.png",
             content: null
         }
     ];

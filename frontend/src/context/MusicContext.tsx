@@ -30,7 +30,7 @@ export const MusicProvider: React.FC<MusicProviderProps> = ({
 
   useEffect(() => {
     // Create audio element
-    audioRef.current = new Audio('/sounds/background_music_tmp.mp3');
+    audioRef.current = new Audio('/background_music_tmp.mp3');
     audioRef.current.loop = true;
     audioRef.current.volume = defaultVolume;
 

@@ -92,19 +92,19 @@ const Tutorial: React.FC = () => {
         {
             title: "Welcome to VIS Minigame! 🎮",
             description: "Learn how to play the LaTeX symbol recognition game",
-            image: "/imgs/pic1.png",
+            image: "/pic1.png",
             content: null
         },
         {
             title: "Backend Integration ⚙️",
             description: "Understanding how the system works",
-            image: "/imgs/pic2.png",
+            image: "/pic2.png",
             content: null
         },
         {
             title: "How Recognition Works 🔍",
             description: "The four-step process",
-            image: "/imgs/pic3.png",
+            image: "/pic3.png",
             content: null
         },
         {
