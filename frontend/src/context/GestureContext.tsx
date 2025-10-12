@@ -124,6 +124,9 @@ const VideoOverlay: React.FC<{ video: HTMLVideoElement }> = ({ video }) => {
     video.style.objectFit = "cover";
     video.style.borderRadius = "8px";
     video.style.boxShadow = "0 2px 6px rgba(0,0,0,0.25)";
+    // Mirror the preview horizontally for a more natural selfie view
+    video.style.transform = "scaleX(-1)";
+    video.style.transformOrigin = "center";
 
     return () => {
       try {

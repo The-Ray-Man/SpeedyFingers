@@ -10,10 +10,9 @@ import { MusicProvider } from "./context/MusicContext";
 import { RewardSoundProvider } from "./context/rewardSoundContext";
 import DevMode from "./pages/DevMode";
 import { GestureProvider } from "./context/GestureContext";
-import ChangeUser from "@/pages/ChangeUser";
 import GameLive from "@/components/pages/GameLive";
 import PlayOptions from "@/pages/PlayOptions";
-import MusicButton from "./components/design/MusicButton.tsx";
+import Tutorial from "./pages/Tutorial.tsx";
 {/* 
 
 
@@ -48,7 +47,8 @@ const App = () => (
       <GestureProvider>
         
       <Router>
-        <MusicButton />
+        
+        
         <Routes>
 
           <Route path="/" element={<Home />} />
@@ -60,8 +60,8 @@ const App = () => (
           <Route path="/game-1" element={<FingerGame />} />
           <Route path="/game-2" element={<BodyGame />} />
           <Route path="/live_game" element={<GameLive />} />
-          <Route path="/changeuser" element={<ChangeUser />} />
           <Route path="/dev-mode" element={<DevMode />} />
+          <Route path="/tutorial" element={<Tutorial />} />
         </Routes>
       </Router>
    

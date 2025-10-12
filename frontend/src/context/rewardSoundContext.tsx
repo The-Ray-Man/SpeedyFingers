@@ -17,10 +17,10 @@ interface RewardSoundProviderProps {
 }
 
 const SOUND_PATHS: Record<SoundType, string> = {
-  gesture_match: '/sounds/gesture_match.mp3',
-  collectPoint: '/sounds/collectPoint.mp3',
-  playerTwo: '/sounds/playerTwo.mp3',
- 
+  gesture_match: '/gesture_match.mp3',
+  collectPoint: '/collectPoint.mp3',
+  playerTwo: '/playerTwo.mp3',
+
 };
 
 export const RewardSoundProvider: React.FC<RewardSoundProviderProps> = ({ 

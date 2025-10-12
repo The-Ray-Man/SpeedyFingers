@@ -13,8 +13,13 @@ import {
   type GestureSummary,
   type GestureDefinition
 } from "../gestureApi";
+import { HAND_CONNECTIONS } from "@mediapipe/hands";
+import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
+import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
+import MusicButton from "@/components/design/MusicButton";
 
 const ADMIN_PASSWORD = "admin123";
 
@@ -565,6 +570,7 @@ const DevMode: React.FC = () => {
   const cameraRef = useRef<Camera | null>(null);
   const currentLandmarksRef = useRef<any>(null);
   const selectedSymbolRef = useRef<string | null>(null);
+  const selectedGestureDetailRef = useRef<GestureDefinition | null>(null);
   const lastMatchTimeRef = useRef<number>(0);
   const processingRef = useRef(false);
 
@@ -580,6 +586,10 @@ const DevMode: React.FC = () => {
   useEffect(() => {
     selectedSymbolRef.current = selectedSymbol;
   }, [selectedSymbol]);
+
+  useEffect(() => {
+    selectedGestureDetailRef.current = selectedGestureDetail;
+  }, [selectedGestureDetail]);
 
   useEffect(() => {
     const initializeHands = async () => {
@@ -1078,6 +1088,10 @@ const DevMode: React.FC = () => {
 
   return (
     <div className="dev-mode-page">
+      <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
+
       <Toaster />
       <main className="dev-shell">
         <header className="dev-hero">

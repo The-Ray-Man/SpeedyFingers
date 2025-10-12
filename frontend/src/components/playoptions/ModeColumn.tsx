@@ -1,4 +1,4 @@
-import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Heading, Text, VStack, HStack } from "@chakra-ui/react";
 import { type LeaderboardEntry } from "@/leaderboardApi";
 import { LeaderboardList } from "./LeaderboardList";
 
@@ -12,6 +12,10 @@ interface ModeColumnProps {
   highlight?: boolean;
   holdProgress?: number; // 0-1 for button fill animation
   borderProgress?: number; // 0-1 for border growth animation
+  tutorialButton?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 export const ModeColumn = ({
@@ -23,6 +27,7 @@ export const ModeColumn = ({
   emptyMessage,
   highlight = false,
   holdProgress = 0,
+  tutorialButton,
 }: ModeColumnProps) => {
   return (
     <Box
@@ -85,7 +90,9 @@ export const ModeColumn = ({
         <Text color={highlight ? "rgba(240, 248, 255, 0.92)" : "gray.600"} _dark={{ color: "gray.300" }}>
           {description}
         </Text>
-        <Box position="relative" overflow="hidden" borderRadius="md">
+
+        <HStack gap={150} align="flex-start">
+           <Box position="relative" overflow="hidden" borderRadius="md">
           {/* Smooth, opaque gradient fill that sits behind the button */}
           <Box
             position="absolute"
@@ -117,6 +124,23 @@ export const ModeColumn = ({
             {ctaLabel}
           </Button>
         </Box>
+          {tutorialButton && (
+            <Button
+              size="xl"
+              onClick={tutorialButton.onClick}
+              bg="purple.500"
+              color="white"
+              _hover={{ bg: "purple.600" }}
+              _dark={{
+                bg: "purple.600",
+                _hover: { bg: "purple.700" }
+              }}
+            >
+              {tutorialButton.label}
+            </Button>
+          )}
+        </HStack>
+
       </VStack>
 
       <Box

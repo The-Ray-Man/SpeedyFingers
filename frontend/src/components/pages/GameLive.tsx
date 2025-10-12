@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitScore } from "@/leaderboardApi";
 import { useRewardSound } from "../../context/rewardSoundContext";
-import { number } from "framer-motion";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
