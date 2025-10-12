@@ -15,8 +15,8 @@ export type HandGesture =
   | null;
 
 export interface TwoHandGestureState {
-  left: HandGesture;
-  right: HandGesture;
+  firstHand: HandGesture;
+  secondHand: HandGesture;
   confirm: boolean;
 }
 
@@ -138,29 +138,24 @@ private detectionInterval = 200; // run every 200ms (~5 times/sec)
 
 private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | null {
     const multiLandmarks = result.landmarks; // Array<Array<landmark>>
-    const handednesses = result.handednesses; // Array<Array<Category>>
     if (!multiLandmarks || multiLandmarks.length === 0) return null;
 
-    const hands: Record<"left" | "right", HandGesture> = { left: null, right: null };
+    const hands: HandGesture[] = [];
 
-    for (let i = 0; i < multiLandmarks.length; i++) {
-        const categories = handednesses?.[i];
-        const primary = categories && categories[0];
-        const labelRaw = (primary?.categoryName || primary?.displayName || "").toLowerCase();
-        const side = (labelRaw === "left" || labelRaw === "right")
-          ? (labelRaw as "left" | "right")
-          : (i === 0 && !hands.left ? "left" : "right");
-
+    for (let i = 0; i < multiLandmarks.length && i < 2; i++) {
         const landmarks = multiLandmarks[i] as Array<{ x: number; y: number }>;
-        hands[side] = this.detectHandGesture(landmarks, side);
+        hands[i] = this.detectHandGesture(landmarks);
     }
 
+    const firstHand = hands[0] || null;
+    const secondHand = hands[1] || null;
+
     let confirm = false;
-    if (hands.left && hands.right) {
-      if (hands.left.type === hands.right.type) {
-        if (hands.left.type === "FINGERS_UP" && hands.right.type === "FINGERS_UP") {
+    if (firstHand && secondHand) {
+      if (firstHand.type === secondHand.type) {
+        if (firstHand.type === "FINGERS_UP" && secondHand.type === "FINGERS_UP") {
           // confirm only if the same number of fingers are up
-          confirm = hands.left.count === hands.right.count;
+          confirm = firstHand.count === secondHand.count;
         } else {
           // for other gestures, just matching type is enough
           confirm = true;
@@ -168,18 +163,17 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
       }
     }
 
-    return { left: hands.left, right: hands.right, confirm };
+    return { firstHand, secondHand, confirm };
 }
 
   private detectHandGesture(
-    landmarks: Array<{ x: number; y: number }>,
-    side: "left" | "right"
+    landmarks: Array<{ x: number; y: number }>
   ): HandGesture {
     // 1) Priority gestures: Thumbs Down, I Love You (ASL ILY)
     if (this.isThumbsDown(landmarks)) {
       return { type: "THUMBS_DOWN" };
     }
-    if (this.isILoveYou(landmarks, side)) {
+    if (this.isILoveYou(landmarks)) {
       return { type: "ILOVEYOU" };
     }
     // Detect thumbs up
@@ -226,13 +220,14 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
     return t.y < p.y && p.y < m.y;
   }
 
-  private isThumbExtended(lm: Array<{ x: number; y: number }>, side: "left" | "right") {
+  private isThumbExtended(lm: Array<{ x: number; y: number }>) {
     const tip = lm[this.L.THUMB_TIP];
     const ip = lm[this.L.THUMB_IP];
     const indexMcp = lm[this.L.INDEX_MCP];
     if (!tip || !ip || !indexMcp) return false;
     const horiz = Math.abs(tip.x - indexMcp.x);
-    const dirOK = side === "left" ? tip.x < ip.x : tip.x > ip.x;
+    // Check if thumb is extended in either direction (left or right hand)
+    const dirOK = tip.x < ip.x || tip.x > ip.x;
     return horiz > 0.05 && dirOK;
   }
 
@@ -256,8 +251,8 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
     return pointingDown && !idx && !mid;
   }
 
-  private isILoveYou(lm: Array<{ x: number; y: number }>, side: "left" | "right") {
-    const thumb = this.isThumbExtended(lm, side);
+  private isILoveYou(lm: Array<{ x: number; y: number }>) {
+    const thumb = this.isThumbExtended(lm);
     const index = this.isFingerExtended(lm, this.L.INDEX_TIP, this.L.INDEX_PIP, this.L.INDEX_MCP);
     const middle = this.isFingerExtended(lm, this.L.MIDDLE_TIP, this.L.MIDDLE_PIP, this.L.MIDDLE_MCP);
     const ring = this.isFingerExtended(lm, this.L.RING_TIP, this.L.RING_PIP, this.L.RING_MCP);
