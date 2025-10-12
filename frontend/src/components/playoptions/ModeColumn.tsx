@@ -98,11 +98,13 @@ export const ModeColumn = ({
             position="absolute"
             left={0}
             top={0}
-            bottom={0}
+            height="100%"
             width={`${Math.max(0, Math.min(1, holdProgress)) * 100}%`}
-            willChange="width"
+            bg="linear-gradient(90deg, #6E5AFF 0%, #9B6BFF 50%, #24B7FF 100%)"
+            opacity={0.5}
+            transition="width 0.3s cubic-bezier(0.4,0,0.2,1)"
             pointerEvents="none"
-            zIndex={0}
+            zIndex={2}
           />
           <Button
             size="lg"
