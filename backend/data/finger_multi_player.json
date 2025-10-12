@@ -1,26 +1,20 @@
 [
   {
-    "name": "Tom-1",
+    "name": "6*7=42",
     "score": 131,
     "symbols": 9,
     "timestamp": "2025-10-12T02:45:14.440267"
   },
   {
-    "name": "Roberto",
-    "score": 71,
+    "name": "Peter",
+    "score": 51,
     "symbols": 17,
     "timestamp": "2025-10-12T06:14:43.691499"
   },
   {
-    "name": "Player 1",
-    "score": 59,
+    "name": "Kali",
+    "score": 32,
     "symbols": 9,
     "timestamp": "2025-10-12T06:43:10.860897"
-  },
-  {
-    "name": "Tom",
-    "score": 23,
-    "symbols": 11,
-    "timestamp": "2025-10-12T02:19:41.460543"
   }
 ]
