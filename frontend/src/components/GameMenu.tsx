@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import { type LeaderboardEntry } from "../leaderboardApi";
+import HomeButton from "./design/ToHome.tsx";
 
 // Helper function to get rank display (medal or number)
 const getRankDisplay = (rank: number): string | number => {
@@ -160,23 +161,14 @@ const GameMenu = ({
     }
   };
 
-  const handleBackToHome = () => {
-    navigate('/');
-  };
+
 
   return (
     <Container maxW="container.xl" py={8}>
       <VStack gap={8} align="stretch">
         {/* Header */}
         <Box>
-          <Button 
-            onClick={handleBackToHome}
-            colorScheme="gray"
-            variant="ghost"
-            mb={4}
-          >
-            ← Back to Home
-          </Button>
+          <HomeButton />
           <Box textAlign="center">
             <Heading size="5xl" mb={2}>
               {gameIcon} {gameTitle}
