@@ -71,7 +71,7 @@ export const ModeColumn = ({
       borderRadius="2xl"
       boxShadow={highlight ? "0 20px 50px rgba(56, 54, 108, 0.35)" : "xl"}
       // Make highlight gradient opaque so nothing shows through
-      bg={highlight ? "linear-gradient(140deg, #191032ff 0%, #1d3a63ff 100%)" : "rgba(248, 248, 255, 0.85)"}
+      bg={highlight ? "linear-gradient(140deg, #191032ff 0%, #1d3a63ff 100%)" : "rgba(248, 248, 255, 1)"}
       _dark={{
         bg: highlight
           ? "linear-gradient(140deg, #191032ff 0%, #1d3a63ff 100%)"
