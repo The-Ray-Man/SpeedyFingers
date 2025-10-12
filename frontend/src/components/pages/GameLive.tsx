@@ -534,6 +534,7 @@ const GameLive = () => {
       postGameTimerRef.current = null;
     }
     postGameDeadlineRef.current = null;
+    postGamePromptRef.current = null;
     setPostGamePrompt(null);
     setTeamName("");
     clearCountdown();
@@ -636,8 +637,8 @@ const GameLive = () => {
     }
     const canvasCtx = context as CanvasRenderingContext2D;
 
-    const READY_PROMPT_INITIAL = "Press Start to enable camera access.";
-    const READY_PROMPT_READY = "Camera ready!<br/>Press Start again or show 👍👍 to begin.";
+    const READY_PROMPT_INITIAL = "Press Start or show 👍👍 to begin.";
+    const READY_PROMPT_READY = "Camera ready!<br/>Press Start or show 👍👍 to begin.";
     const READY_PROMPT_REPLAY = "Great run!<br/>Press Start or show 👍👍 to play again.";
 
     const startPostGameCountdown = () => {
@@ -670,13 +671,15 @@ const GameLive = () => {
     ) => {
       postGameDeadlineRef.current = performance.now() + POST_GAME_TIMEOUT_MS;
       setTeamName(winnerId === 1 ? "Player 1" : "Player 2");
-      setPostGamePrompt({
+      const prompt: PostGameState = {
         winnerId,
         score,
         symbols,
         remainingMs: POST_GAME_TIMEOUT_MS,
         submitting: false
-      });
+      };
+      postGamePromptRef.current = prompt;
+      setPostGamePrompt(prompt);
       updateStatusLine(statusMessage);
       if (resetButton) {
         resetButton.disabled = false;
@@ -845,7 +848,7 @@ const GameLive = () => {
     ];
     const gestureLookup = Object.fromEntries(gestureVocabulary.map(item => [item.id, item]));
     const DOUBLE_GESTURE_RATE = 0.4;
-    const GAME_DURATION_MS = 90_000;
+    const GAME_DURATION_MS = 60_000;
     const COIN_MIN_INTERVAL_MS = 1400;
     const COIN_MAX_INTERVAL_MS = 2400;
     const COIN_LIFETIME_MS = 3000;
@@ -971,6 +974,24 @@ const GameLive = () => {
       );
     };
 
+    const warmupCamera = async () => {
+      try {
+        await ensureTrackingReady();
+        if (disposed) {
+          return;
+        }
+        enterWaitingState(READY_PROMPT_READY);
+        updateStatusLine("Press Start or show 👍👍 to begin.");
+      } catch (error) {
+        console.error("[GameLive] Failed to prepare camera:", error);
+        cameraReady = false;
+        enterWaitingState(READY_PROMPT_INITIAL);
+        updateStatusLine(describeCameraError(error));
+      }
+    };
+
+    void warmupCamera();
+
     const beforeUnloadHandler = () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
@@ -996,13 +1017,31 @@ const GameLive = () => {
 
     let disposed = false;
 
+    const describeCameraError = (error: unknown) => {
+      let message = "Failed to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === "NotAllowedError") {
+          message += "Please allow camera permissions and try again.";
+        } else if (error.name === "NotFoundError") {
+          message += "No compatible camera was found.";
+        } else if (error.name === "NotReadableError") {
+          message += "Camera is currently in use by another application.";
+        } else {
+          message += error.message;
+        }
+      } else {
+        message += "Please try again.";
+      }
+      return message;
+    };
+
     async function handleStartClick() {
       if (gameActive) {
         return;
       }
 
       startButton.disabled = true;
-      updateStatusLine(cameraReady ? "Starting match…" : "Requesting camera access…");
+      updateStatusLine("Starting match…");
 
       try {
         if (!cameraReady) {
@@ -1010,31 +1049,16 @@ const GameLive = () => {
           if (disposed) {
             return;
           }
-          enterWaitingState(READY_PROMPT_READY);
-          updateStatusLine("Camera ready. Press Start or show 👍👍 to begin.");
-          return;
         }
 
         beginMatch();
       } catch (error) {
         console.error(error);
         cameraReady = false;
-        let message = "Failed to access camera. ";
-        if (error instanceof Error) {
-          if (error.name === "NotAllowedError") {
-            message += "Please allow camera permissions and try again.";
-          } else if (error.name === "NotFoundError") {
-            message += "No compatible camera was found.";
-          } else if (error.name === "NotReadableError") {
-            message += "Camera is currently in use by another application.";
-          } else {
-            message += error.message;
-          }
-        } else {
-          message += "Please try again.";
-        }
+        const message = describeCameraError(error);
         enterWaitingState(READY_PROMPT_INITIAL);
         updateStatusLine(message);
+        startButton.disabled = false;
       }
     }
 
@@ -2126,7 +2150,7 @@ const GameLive = () => {
               <video ref={videoRef} playsInline muted />
               <canvas ref={canvasRef} />
               <div className="ready-overlay" ref={readyOverlayRef}>
-                Press Start to enable camera access.
+                Press Start or show 👍👍 to begin.
               </div>
               {countdownText && (
                 <div
@@ -2220,16 +2244,10 @@ const GameLive = () => {
           <button type="button" className="back-button" onClick={() => navigate("/play")}>
             Back to Menu
           </button>
-          <button
-            type="button"
-            onClick={() => triggerDebugOverlayRef.current?.()}
-          >
-            Debug Post-Game Overlay
-          </button>
         </div>
 
         <div className="status-line" ref={statusMessageRef}>
-          Press Start to enable camera access.
+          Press Start or show 👍👍 to begin.
         </div>
 
         <div className="hidden-audio">

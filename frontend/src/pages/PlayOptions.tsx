@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,8 @@ import {
   getGameMultiPlayerLeaderboard,
   type LeaderboardEntry
 } from "@/leaderboardApi";
+import { useGesture } from "@/context/GestureContext";
+import { keyframes } from "@emotion/react";
 
 const PlayOptions = () => {
   const navigate = useNavigate();
@@ -25,6 +27,130 @@ const PlayOptions = () => {
   const [liveGameBoard, setLiveGameBoard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { gesture, enabled, toggleGesture, loading: gestureLoading } = useGesture();
+  const HOLD_DURATION_MS = 3200;
+  const [singleProgress, setSingleProgress] = useState(0);
+  const [multiProgress, setMultiProgress] = useState(0);
+  const singleStartRef = useRef<number | null>(null);
+  const multiStartRef = useRef<number | null>(null);
+  const triggeredRef = useRef<{ single: boolean; multi: boolean }>({ single: false, multi: false });
+  const autoManagedRef = useRef(false);
+  const latestEnabledRef = useRef(enabled);
+  const permissionRequestedRef = useRef(false);
+
+  useEffect(() => {
+    latestEnabledRef.current = enabled;
+  }, [enabled]);
+
+  useEffect(() => {
+    if (gestureLoading || permissionRequestedRef.current) {
+      return;
+    }
+    permissionRequestedRef.current = true;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+    void (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error("[PlayOptions] Camera access request failed:", err);
+      }
+    })();
+  }, [gestureLoading]);
+
+  useEffect(() => {
+    if (gestureLoading) {
+      return;
+    }
+    if (!autoManagedRef.current) {
+      if (!latestEnabledRef.current) {
+        toggleGesture();
+      }
+      autoManagedRef.current = true;
+    }
+
+    return () => {
+      if (autoManagedRef.current) {
+        if (latestEnabledRef.current) {
+          toggleGesture();
+        }
+        autoManagedRef.current = false;
+      }
+    };
+  }, [gestureLoading, toggleGesture]);
+
+  const updateHold = (
+    key: "single" | "multi",
+    active: boolean,
+    startRef: MutableRefObject<number | null>,
+    setProgress: Dispatch<SetStateAction<number>>,
+    onComplete: () => void,
+    now: number
+  ) => {
+    if (active) {
+      if (startRef.current === null) {
+        startRef.current = now;
+      }
+      const elapsed = now - startRef.current;
+      const progress = Math.min(1, elapsed / HOLD_DURATION_MS);
+      setProgress(progress);
+      if (progress >= 1 && !triggeredRef.current[key]) {
+        triggeredRef.current[key] = true;
+        onComplete();
+      }
+    } else {
+      startRef.current = null;
+      if (triggeredRef.current[key]) {
+        triggeredRef.current[key] = false;
+      }
+      setProgress(0);
+    }
+  };
+
+  useEffect(() => {
+    const now = performance.now();
+    const left = gesture?.left;
+    const right = gesture?.right;
+
+    const getFingerCount = (hand: typeof left) =>
+      hand?.type === "FINGERS_UP" ? hand.count ?? null : null;
+
+    const leftCount = getFingerCount(left);
+    const rightCount = getFingerCount(right);
+
+    const multiActive =
+      leftCount !== null &&
+      rightCount !== null &&
+      leftCount >= 2 &&
+      rightCount >= 2;
+
+    let singleActive =
+      (leftCount === 1 || rightCount === 1) && !multiActive;
+
+    const hasGesture = !!gesture;
+    if (!hasGesture) {
+      singleActive = false;
+    }
+
+    updateHold(
+      "single",
+      singleActive,
+      singleStartRef,
+      setSingleProgress,
+      () => navigate("/game-1"),
+      now
+    );
+    updateHold(
+      "multi",
+      multiActive,
+      multiStartRef,
+      setMultiProgress,
+      () => navigate("/live_game"),
+      now
+    );
+  }, [gesture, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +239,7 @@ const PlayOptions = () => {
                   onClick={() => navigate("/live_game")}
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
+                  selectionProgress={multiProgress}
                 />
                 <ModeColumn
                   title="Single Player Challenge"
@@ -121,6 +248,7 @@ const PlayOptions = () => {
                   onClick={() => navigate("/game-1")}
                   entries={singlePlayerBoard}
                   emptyMessage="No solo scores yet. Set the benchmark!"
+                  selectionProgress={singleProgress}
                 />
               </SimpleGrid>
             </>
@@ -139,7 +267,20 @@ interface ModeColumnProps {
   entries: LeaderboardEntry[];
   emptyMessage: string;
   highlight?: boolean;
+  selectionProgress?: number;
 }
+
+const selectionPulse = keyframes`
+  0% {
+    box-shadow: 0 0 0 0 rgba(120, 255, 180, 0.45), 0 0 18px rgba(120, 255, 180, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(120, 255, 180, 0.2), 0 0 26px rgba(120, 255, 180, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(120, 255, 180, 0.45), 0 0 18px rgba(120, 255, 180, 0.35);
+  }
+`;
 
 const ModeColumn = ({
   title,
@@ -148,55 +289,120 @@ const ModeColumn = ({
   onClick,
   entries,
   emptyMessage,
-  highlight = false
-}: ModeColumnProps) => (
-  <Box
-    borderRadius="2xl"
-    boxShadow={highlight ? "0 24px 60px rgba(56, 54, 108, 0.55)" : "xl"}
-    bg={highlight ? "linear-gradient(140deg, rgba(110, 85, 255, 0.35), rgba(30, 180, 255, 0.2))" : "white"}
-    _dark={{
-      bg: highlight
-        ? "linear-gradient(140deg, rgba(120, 95, 255, 0.35), rgba(40, 200, 255, 0.2))"
-        : "rgba(20, 24, 36, 0.75)"
-    }}
-    border={highlight ? "1px solid rgba(140, 200, 255, 0.35)" : "1px solid rgba(255, 255, 255, 0.08)"}
-    p={{ base: 6, md: 8 }}
-    display="flex"
-    flexDirection="column"
-    gap={6}
-  >
-    <VStack align="flex-start" gap={3}>
-      <Heading size="lg">{title}</Heading>
-      <Text color={highlight ? "rgba(240, 248, 255, 0.92)" : "gray.600"} _dark={{ color: "gray.300" }}>
-        {description}
-      </Text>
-      <Button colorScheme={highlight ? "purple" : "blue"} size="lg" onClick={onClick} alignSelf="flex-start">
-        {ctaLabel}
-      </Button>
-    </VStack>
+  highlight = false,
+  selectionProgress = 0
+}: ModeColumnProps) => {
+  const safeProgress = Math.max(0, Math.min(1, selectionProgress));
+  const isSelecting = safeProgress > 0;
 
+  return (
     <Box
-      mt={2}
-      borderRadius="xl"
-      border="1px solid rgba(255, 255, 255, 0.12)"
-      bg={highlight ? "rgba(15, 20, 38, 0.45)" : "rgba(240, 242, 255, 0.65)"}
-      _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.55)" : "rgba(25, 30, 48, 0.65)" }}
-      px={{ base: 4, md: 5 }}
-      py={{ base: 4, md: 5 }}
+      position="relative"
+      borderRadius="2xl"
+      boxShadow={
+        highlight
+          ? "0 24px 60px rgba(56, 54, 108, 0.55)"
+          : "0 10px 30px rgba(20, 30, 45, 0.16)"
+      }
+      bg={
+        highlight
+          ? "linear-gradient(140deg, rgba(110, 85, 255, 0.35), rgba(30, 180, 255, 0.2))"
+          : "white"
+      }
+      _dark={{
+        bg: highlight
+          ? "linear-gradient(140deg, rgba(120, 95, 255, 0.35), rgba(40, 200, 255, 0.2))"
+          : "rgba(20, 24, 36, 0.75)"
+      }}
+      border={
+        highlight
+          ? "1px solid rgba(140, 200, 255, 0.35)"
+          : "1px solid rgba(255, 255, 255, 0.08)"
+      }
+      p={{ base: 6, md: 8 }}
+      display="flex"
+      flexDirection="column"
+      gap={6}
+      transition="transform 0.3s ease, box-shadow 0.3s ease"
+      transform={isSelecting ? "translateY(-6px)" : undefined}
+      animation={isSelecting ? `${selectionPulse} 2.4s ease-in-out infinite` : undefined}
+      overflow="hidden"
     >
-      <Heading
-        size="sm"
-        mb={3}
-        textTransform="uppercase"
-        letterSpacing="0.18em"
-        color="rgba(220, 230, 255, 0.85)"
+      {isSelecting && (
+        <Box
+          position="absolute"
+          inset={0}
+          pointerEvents="none"
+          bgGradient="linear(to-br, rgba(120, 255, 180, 0.12), transparent 55%)"
+          zIndex={0}
+        />
+      )}
+
+      <VStack align="flex-start" gap={3} position="relative" zIndex={1}>
+        <Heading size="lg">{title}</Heading>
+        <Text
+          color={highlight ? "rgba(240, 248, 255, 0.92)" : "gray.600"}
+          _dark={{ color: "gray.300" }}
+        >
+          {description}
+        </Text>
+        <Button
+          colorScheme={highlight ? "purple" : "blue"}
+          size="lg"
+          onClick={onClick}
+          alignSelf="flex-start"
+        >
+          {ctaLabel}
+        </Button>
+      </VStack>
+
+      <Box
+        mt={2}
+        borderRadius="xl"
+        border="1px solid rgba(255, 255, 255, 0.12)"
+        bg={highlight ? "rgba(15, 20, 38, 0.45)" : "rgba(240, 242, 255, 0.65)"}
+        _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.55)" : "rgba(25, 30, 48, 0.65)" }}
+        px={{ base: 4, md: 5 }}
+        py={{ base: 4, md: 5 }}
+        position="relative"
+        zIndex={1}
       >
-        Leaderboard
-      </Heading>
-      <LeaderboardList entries={entries} emptyMessage={emptyMessage} highlight={highlight} />
+        <Heading
+          size="sm"
+          mb={3}
+          textTransform="uppercase"
+          letterSpacing="0.18em"
+          color="rgba(220, 230, 255, 0.85)"
+        >
+          Leaderboard
+        </Heading>
+        <LeaderboardList entries={entries} emptyMessage={emptyMessage} highlight={highlight} />
+      </Box>
+
+      {isSelecting && (
+        <Box
+          position="absolute"
+          bottom={{ base: 4, md: 6 }}
+          left="12%"
+          right="12%"
+          height="6px"
+          borderRadius="full"
+          bg="rgba(255, 255, 255, 0.2)"
+          overflow="hidden"
+          zIndex={1}
+        >
+          <Box
+            height="100%"
+            borderRadius="inherit"
+            bgGradient="linear(to-r, #78ffb4, #4cc3ff)"
+            width={`${safeProgress * 100}%`}
+            transition="width 0.15s ease-out"
+          />
+        </Box>
+      )}
     </Box>
-  </Box>
-);
+  );
+};
 
 interface LeaderboardListProps {
   entries: LeaderboardEntry[];
@@ -215,7 +421,7 @@ const LeaderboardList = ({ entries, emptyMessage, highlight = false }: Leaderboa
 
   return (
     <Stack gap={3}>
-      {entries.slice(0, 8).map(entry => (
+      {entries.slice(0, 3).map(entry => (
         <Flex
           key={`${entry.rank}-${entry.name ?? entry.team ?? entry.score}`}
           justify="space-between"
