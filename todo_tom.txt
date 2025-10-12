@@ -1,3 +1,1 @@
-* Countdown before starting
 * Make a correct classification more visually present (green box)
-* Visual Divider 

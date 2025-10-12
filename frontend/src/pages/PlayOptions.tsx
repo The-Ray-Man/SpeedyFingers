@@ -75,14 +75,14 @@ const PlayOptions = () => {
             ← Back to Home
           </Button>
           <HStack gap="7em" align="center" justify="center">
-            <Heading size="5xl"><Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game {"->"}</Text>☝️</Heading>
+            <Heading size="5xl"><Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game {"->"}</Text>✌️</Heading>
             <VStack gap={3} textAlign="center">
               <Heading size="5xl">Choose Your Game Mode</Heading>
               <Text maxW="xl" color="gray.600" _dark={{ color: "gray.300" }}>
                 Battle friends in real-time or show off your skills at mimicing more advanced shapes, emojis and even LaTeX shapes.
               </Text>
             </VStack>
-            <Heading size="5xl">✌️<Text fontSize={"md"} position="absolute" transform="translate(3em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
+            <Heading size="5xl">☝️<Text fontSize={"md"} position="absolute" transform="translate(3em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
           </HStack>
 
           {loading ? (
