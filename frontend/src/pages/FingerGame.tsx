@@ -16,8 +16,9 @@ import { Hands, type Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { HAND_CONNECTIONS } from "@mediapipe/hands";
-import { getRandomGesture, matchGesture, type GestureDefinition } from "../gestureApi";
+import { getRandomGesture, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray } from "../advancedGestureRecognition";
+import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { submitScore, getGameSinglePlayerLeaderboard, type LeaderboardEntry } from "../leaderboardApi";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { useRewardSound } from "../context/rewardSoundContext";
@@ -74,7 +75,8 @@ const PlayMode: React.FC = () => {
   const gameStateRef = useRef({ 
     gameStarted: false, 
     gameOver: false, 
-    currentSymbol: null as string | null 
+    currentSymbol: null as string | null,
+    currentDefinition: null as GestureDefinition | null
   });
   const matchCooldownRef = useRef<boolean>(false);
   const currentLandmarksRef = useRef<any>(null);
@@ -195,11 +197,11 @@ const PlayMode: React.FC = () => {
 
   // Update game state ref
   useEffect(() => {
-    gameStateRef.current = { gameStarted, gameOver, currentSymbol };
+    gameStateRef.current = { gameStarted, gameOver, currentSymbol, currentDefinition };
     waitingForThumbsUpRef.current = waitingForThumbsUp;
     waitingForReplayRef.current = waitingForReplay;
     gestureGracePeriodRef.current = gestureGracePeriod;
-  }, [gameStarted, gameOver, currentSymbol, waitingForThumbsUp, waitingForReplay, gestureGracePeriod]);
+  }, [gameStarted, gameOver, currentSymbol, currentDefinition, waitingForThumbsUp, waitingForReplay, gestureGracePeriod]);
 
   // Load leaderboard on mount
   const loadLeaderboard = useCallback(async () => {
@@ -343,7 +345,7 @@ const PlayMode: React.FC = () => {
       canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
     }
 
-    const { gameStarted: isGameActive, gameOver: isGameOver, currentSymbol: symbol } = gameStateRef.current;
+    const { gameStarted: isGameActive, gameOver: isGameOver, currentSymbol: symbol, currentDefinition: definition } = gameStateRef.current;
 
     // Draw hand landmarks
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -432,14 +434,19 @@ const PlayMode: React.FC = () => {
       }
 
       // Calculate similarity during active game
-      if (isGameActive && !isGameOver && symbol && !matchCooldownRef.current) {
+      if (isGameActive && !isGameOver && symbol && definition && !matchCooldownRef.current) {
         try {
           const landmarksArray = results.multiHandLandmarks.map((hand) => landmarksToArray(hand));
           
-          const matchResponse = await matchGesture({
-            symbol: symbol,
-            landmarks: landmarksArray,
+          console.log("About to match gesture:", {
+            symbol,
+            definitionExists: !!definition,
+            landmarksArrayLength: landmarksArray.length,
+            variantsCount: definition?.variants?.length
           });
+          
+          // Use local matching instead of backend request
+          const matchResponse = matchGestureLocally(landmarksArray, definition);
 
           setSimilarity(matchResponse.similarity);
 
@@ -504,6 +511,12 @@ const PlayMode: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await getRandomGesture();
+      console.log("Loaded new gesture:", {
+        symbol: response.symbol,
+        definitionExists: !!response.definition,
+        variantsCount: response.definition?.variants?.length,
+        threshold: response.definition?.threshold
+      });
       setCurrentSymbol(response.symbol);
       setCurrentDefinition(response.definition);
       setSimilarity(0);
