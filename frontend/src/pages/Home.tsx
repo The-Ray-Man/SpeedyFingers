@@ -193,45 +193,4 @@ const Home = () => {
   );
 };
 
-interface FeatureCardProps {
-  icon: ElementType;
-  title: string;
-  description: string;
-  bg: string;
-}
-
-const FeatureCard = ({ icon, title, description, bg }: FeatureCardProps) => (
-  <Box
-    bg={bg}
-    _dark={{ bg: "rgba(20, 24, 36, 0.75)" }}
-    p={8}
-    borderRadius="xl"
-    boxShadow="md"
-    h="100%"
-    transition="transform 0.2s ease"
-    _hover={{ transform: "translateY(-6px)" }}
-  >
-    <HStack gap={4} mb={4}>
-      <Flex
-        w={12}
-        h={12}
-        borderRadius="full"
-        align="center"
-        justify="center"
-        bg="purple.500"
-        color="white"
-        fontSize="2xl"
-      >
-        <Icon as={icon} />
-      </Flex>
-      <Heading size="md">{title}</Heading>
-    </HStack>
-    <Text color="gray.600" _dark={{ color: "gray.300" }}>
-      {description}
-    </Text>
-     
-  </Box>
-  
-);
-
 export default Home;

@@ -10,7 +10,6 @@ import {
   Text,
   Progress,
   Badge,
-  Card,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { Hands, type Results } from "@mediapipe/hands";
