@@ -218,6 +218,7 @@ const PlayOptions = () => {
       <Text
         position="absolute"
         right="calc(100% + 0.5rem)"
+        width="100px"
         bottom="0.5rem"
         fontSize="sm"
         fontWeight="bold"
@@ -251,8 +252,8 @@ const PlayOptions = () => {
     <Box position="fixed" top={4} left={4} zIndex={10}>
       <HStack gap={3} align="center">
   <HomeButton holdProgress={currentIntention === "back" ? holdProgress : 0} />
-        <Text transform="rotate(-8deg)
-        translate(0em, -1.2em)"
+        <Text transform="rotate(-5deg)
+        translate(0em, -0.5em)"
           fontSize="sm"
           fontWeight="bold"
           color="gray.700"
@@ -301,7 +302,7 @@ const PlayOptions = () => {
                 </Box>
               )}
               <Heading size="5xl">
-                <Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game{"->"}</Text>
+                <Text fontSize={"md"} width="200px" position="absolute" transform="translate(-10.5em, -1em) rotate(8deg)">Show to select game {"->"}</Text>
                 ✌️+✌️
               </Heading>
             </Box>
