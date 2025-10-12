@@ -953,7 +953,7 @@ const PlayMode: React.FC = () => {
                     <VStack gap={3} w="full">
                       <VStack gap={2} w="full">
                         <Text fontSize="md" fontWeight="semibold" color={mutedText}>
-                          Team/Winner Name
+                          Winner Name
                         </Text>
                         <input
                           type="text"
@@ -991,6 +991,14 @@ const PlayMode: React.FC = () => {
                     </VStack>
                   )}
 
+                  {/* Show message when waiting for replay */}
+                  {waitingForReplay && !gestureGracePeriod && (
+                     <HStack gap={3} w="full">
+                        <Button colorScheme="red" size="lg" onClick={handleSkipAndReturn} flex="1">
+                          Skip & Return
+                        </Button>
+                      </HStack>
+                  )}
                   {/* Gesture instructions */}
                   <VStack gap={2}>
                     {gestureGracePeriod ? (
@@ -1009,12 +1017,6 @@ const PlayMode: React.FC = () => {
                     )}
                   </VStack>
 
-                  {/* Show message when waiting for replay */}
-                  {waitingForReplay && !gestureGracePeriod && (
-                    <Text fontSize="lg" color={accentPrimary} fontWeight="bold">
-                      Show 👍 with both hands to play again!
-                    </Text>
-                  )}
                 </VStack>
               </Box>
             </Box>
