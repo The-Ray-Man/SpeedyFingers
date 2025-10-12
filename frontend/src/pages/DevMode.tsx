@@ -8,6 +8,7 @@ import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import MusicButton from "@/components/design/MusicButton";
+import { Stack, VStack } from "@chakra-ui/react";
 
 const ADMIN_PASSWORD = "admin123";
 
@@ -173,8 +174,9 @@ const DEV_MODE_STYLES = `
 
 @keyframes countdownFlash {
   0% { opacity: 0; transform: scale(0.6); }
-  10% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.85); }
+  15% { opacity: 1; transform: scale(1.1); }
+  25% { transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .stage-actions {
@@ -1121,7 +1123,7 @@ const DevMode: React.FC = () => {
                     {handDetected ? "Hand Detected" : "No Hand"}
                   </span>
                 </div>
-                {countdown !== null && <div className="stage-countdown">{countdown}</div>}
+                {countdown !== null && <div key={countdown} className="stage-countdown">{countdown}</div>}
               </div>
 
               <div className="stage-actions">
@@ -1164,7 +1166,7 @@ const DevMode: React.FC = () => {
                     Done
                   </button>
                 </div>
-
+               <Stack gap={4}>
                 {selectedGestureDetail && selectedGestureDetail.variants.length > 0 ? (
                   <div className="similarity-block">
                     <div className="panel-title">Live Similarity · {Math.round(liveSimilarity * 100)}%</div>
@@ -1187,7 +1189,7 @@ const DevMode: React.FC = () => {
                 ) : (
                   <div className="empty-state">No captures yet. Add your first capture below.</div>
                 )}
-
+                 
                 <button
                   className="button"
                   onClick={handleAddCapture}
@@ -1207,6 +1209,7 @@ const DevMode: React.FC = () => {
                 <p className="hint-text">
                   {selectedGestureDetail?.variants.length ?? 0} capture(s) recorded
                 </p>
+              </Stack>
               </div>
             )}
           </div>
@@ -1309,6 +1312,70 @@ const DevMode: React.FC = () => {
           </aside>
         </section>
       </main>
+
+      {isAddingNew && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h2>Create New Gesture</h2>
+            <form
+              onSubmit={event => {
+                event.preventDefault();
+                handleCreateGesture();
+              }}
+            >
+              <div className="form-field">
+                <label htmlFor="new-symbol">Symbol Name</label>
+                <input
+                  id="new-symbol"
+                  type="text"
+                  className="text-input"
+                  value={newSymbolName}
+                  onChange={event => setNewSymbolName(event.target.value)}
+                  placeholder="e.g., Peace, Thumbs Up, OK"
+                  autoFocus
+                />
+              </div>
+
+              <div className="range-field">
+                <div className="panel-title" style={{ marginBottom: 0 }}>
+                  Match Threshold · {newSymbolThreshold}%
+                </div>
+                <input
+                  type="range"
+                  min={30}
+                  max={90}
+                  value={newSymbolThreshold}
+                  onChange={event => setNewSymbolThreshold(Number(event.target.value))}
+                />
+                <p className="hint-text">
+                  Lower values are more permissive, higher values require closer matches.
+                </p>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  className="button ghost sm"
+                  type="button"
+                  onClick={() => {
+                    setIsAddingNew(false);
+                    setNewSymbolName("");
+                    setNewSymbolThreshold(55);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button sm"
+                  type="submit"
+                  disabled={!newSymbolName.trim()}
+                >
+                  Create Gesture
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {isManageDialogOpen && selectedGestureDetail && (
         <div className="modal-backdrop">
