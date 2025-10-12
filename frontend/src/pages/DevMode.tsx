@@ -8,7 +8,7 @@ import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import MusicButton from "@/components/design/MusicButton";
-import { Stack, VStack } from "@chakra-ui/react";
+import { Flex, Stack, VStack } from "@chakra-ui/react";
 
 const ADMIN_PASSWORD = "admin123";
 
@@ -1323,6 +1323,7 @@ const DevMode: React.FC = () => {
                 handleCreateGesture();
               }}
             >
+              <Flex gap={5} direction="column">
               <div className="form-field">
                 <label htmlFor="new-symbol">Symbol Name</label>
                 <input
@@ -1372,6 +1373,7 @@ const DevMode: React.FC = () => {
                   Create Gesture
                 </button>
               </div>
+            </Flex>
             </form>
           </div>
         </div>
