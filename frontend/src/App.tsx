@@ -54,14 +54,15 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<PlayOptions />} />
           <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
-          <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
+          {/* <Route path="/bodyGameMenu" element={<BodyGameMenu />} /> */}
           <Route path="/tutorialFinger" element={<TutorialFinger />} />
-          <Route path="/tutorialBody" element={<TutorialBody />} />
+          {/* <Route path="/tutorialBody" element={<TutorialBody />} /> */}
           <Route path="/game-1" element={<FingerGame />} />
-          <Route path="/game-2" element={<BodyGame />} />
+          {/* <Route path="/game-2" element={<BodyGame />} /> */}
           <Route path="/live_game" element={<GameLive />} />
           <Route path="/dev-mode" element={<DevMode />} />
           <Route path="/tutorial" element={<Tutorial />} />
+          <Route path="*" element={<Home />} />
         </Routes>
       </Router>
    
