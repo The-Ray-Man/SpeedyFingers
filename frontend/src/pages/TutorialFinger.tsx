@@ -1,10 +1,8 @@
-
-import { 
+import {
     Box, 
     Container, 
     Heading, 
     Text, 
-    VStack, 
     HStack,
     Button,
     Card,

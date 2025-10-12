@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Co-op Hand Recognition</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #1f1f2e, #0d0d15);
+      color: #f5f7fb;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    main {
+      width: min(100%, 1280px);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .arena {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      box-shadow: 0 30px 60px rgba(15, 15, 30, 0.6);
+      background: linear-gradient(135deg, rgba(90, 80, 180, 0.35), rgba(25, 220, 250, 0.15));
+      aspect-ratio: 16 / 9;
+      height: 100%;
+      width: 90%;
+    }
+
+    @media (max-width: 1024px) {
+      .stage {
+        min-width: 0;
+        width: 100%;
+        min-height: 360px;
+      }
+    }
+
+    .player-panels {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .player-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      padding: 0.75rem;
+      border-radius: 14px;
+      background: linear-gradient(160deg, rgba(40, 35, 80, 0.42), rgba(20, 30, 55, 0.32));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 16px 30px rgba(15, 15, 30, 0.38);
+      min-height: 0;
+      width: 220px;
+    }
+
+    .player-panel h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(245, 247, 251, 0.72);
+    }
+
+    .target-card {
+      width: 100%;
+      padding: 0.5rem 0.5rem;
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(60, 50, 110, 0.55), rgba(20, 30, 55, 0.35));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .target-title {
+      font-size: 0.8rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(235, 240, 255, 0.65);
+    }
+
+    .target-emoji {
+      font-size: 3rem;
+      line-height: 1;
+      color: #f9f9ff;
+    }
+
+    .target-emoji.satisfied {
+      color: #88ffd2;
+      text-shadow: 0 0 18px rgba(120, 255, 210, 0.6);
+    }
+
+    .target-label {
+      font-size: 0.95rem;
+      color: rgba(210, 225, 255, 0.85);
+      min-height: 1.2em;
+    }
+
+    .player-coins {
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+      color: rgba(255, 215, 130, 0.95);
+      font-weight: 600;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .stage video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: saturate(1.1) contrast(1.1);
+      transform: scaleX(-1);
+      position: relative;
+      z-index: 1;
+    }
+
+    .stage canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      transform: scaleX(-1);
+      z-index: 2;
+    }
+
+    .hud {
+      display: flex;
+      flex-direction: row;
+      gap:3rem;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      margin-top:  1rem;
+    }
+
+    .countdown {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: rgba(245, 247, 255, 0.92);
+      text-shadow: 0 0 24px rgba(120, 180, 255, 0.55);
+    }
+
+    .timebar {
+      position: relative;
+      width: min(100%, 640px);
+      height: 45px;
+      border-radius: 999px;
+      background: rgba(55, 70, 120, 0.35);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .timebar-fill {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #18b5ff, #7b5eff);
+      transform-origin: left center;   /* you’ll still set transform in JS */
+      z-index: 0;                      /* behind the label */
+    }
+
+    .timebar-label {
+      position: relative;              /* create a stacking context for the label */
+      z-index: 1;                      /* above the fill */
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: rgba(245, 247, 255, 0.92);
+      text-shadow: 0 0 24px rgba(120, 180, 255, 0.55);
+      pointer-events: none;            /* optional: let clicks reach the bar */
+    }
+
+    /* .timebar {
+      position: relative;
+      width: min(100%, 640px);
+      height: 45px;
+      border-radius: 999px;
+      background: rgba(55, 70, 120, 0.35);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .timebar-label {
+      transform-origin: left center;
+      z-index: 1;   
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: rgba(245, 247, 255, 0.92);
+      text-shadow: 0 0 24px rgba(120, 180, 255, 0.55);
+    }
+
+    .timebar-fill {
+      position: absolute;
+      inset: 0;
+      z-index: 0;   
+      border-radius: inherit;
+      background: linear-gradient(90deg, #18b5ff, #7b5eff);
+      transform-origin: left center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: rgba(245, 247, 255, 0.92);
+      text-shadow: 0 0 24px rgba(120, 180, 255, 0.55);
+    } */
+
+    .scoreboard {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      font-size: 1.1rem;
+      color: rgba(240, 245, 255, 0.85);
+      flex-wrap: wrap;
+    }
+
+    .score-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 140px;
+    }
+
+    .score-label {
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(220, 230, 255, 0.72);
+    }
+
+    .score-value {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: #ffe066;
+      text-shadow: 0 0 12px rgba(255, 224, 102, 0.4);
+    }
+
+    .clap-overlay {
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) rotate(-12deg);
+      font-size: 4rem;
+      font-weight: 800;
+      color: rgba(255, 230, 130, 0.95);
+      text-shadow: 0 0 25px rgba(255, 200, 60, 0.6);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      padding: 0;
+      border: none;
+      background: none;
+      max-width: none;
+      z-index: 3;
+    }
+
+    .hidden-audio {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .overlay {
+      position: absolute;
+      padding: 0.7rem 1rem;
+      background: rgba(12, 12, 18, 0.65);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.9rem;
+      line-height: 1.4;
+      max-width: 320px;
+    }
+
+    #peopleCount {
+      top: 1rem;
+      left: 1rem;
+    }
+
+    #handInfo {
+      bottom: 1rem;
+      left: 1rem;
+    }
+
+    #status {
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    #highFiveInfo {
+      top: 1rem;
+      right: 1rem;
+      text-align: right;
+    }
+
+    button {
+      appearance: none;
+      padding: 0.9rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #7b5eff, #18b5ff);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(13, 110, 253, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      justify-self: start;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 40px rgba(24, 181, 255, 0.45);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .instructions {
+      max-width: 720px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: rgba(235, 240, 255, 0.85);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="hud">
+        <aside class="player-panel" aria-label="Player 1 target">
+          <span class="score-label">Player 1</span>
+          <div class="target-emoji" id="player1Prompt">–</div>
+        </aside>
+      
+      <div class="timebar">
+        <div class="timebar-fill" id="timebarFill"></div>
+        <div class="timebar-label" id="timebar">90.0s</div> 
+      </div>
+      
+      <aside class="player-panel" aria-label="Player 2 target">
+        <h2>Player 2</h2>
+        <div class="target-emoji" id="player2Prompt">–</div>
+      </aside>
+    </div>
+    <div class="arena">
+      <section class="stage">
+        <video id="webcam" playsinline muted></video>
+        <canvas id="output"></canvas>
+        <div class="overlay" id="peopleCount">Detected players: 0</div>
+        <div class="overlay" id="handInfo">Waiting for hands…</div>
+        <div class="overlay" id="highFiveInfo">No high fives yet.</div>
+        <div class="overlay" id="status">Allow the camera to begin.</div>
+        <div class="overlay clap-overlay" id="clapOverlay"></div>
+      </section>
+    </div>
+    <div class="player-panels">
+      <div class="controls">
+        <div class="score-block">
+          <span class="score-label">Player 1</span>
+          <strong class="score-value" id="scoreValueP1">0</strong>
+        </div>
+        <button id="startButton">Start (Camera &amp; Tracking)</button>
+        <button id="resetBatchButton" disabled>Restart</button>
+        <div class="score-block">
+          <span class="score-label">Player 2</span>
+          <strong class="score-value" id="scoreValueP2">0</strong>
+        </div>
+      </div>
+    </div>
+    <div class="hidden-audio">
+      <div id="ytPlayer"></div>
+    </div>
+    <p style="font-style: italic;" class="instructions">
+      The session lasts 90 seconds. Each player earns 2 points whenever they complete their own gesture prompt—no need
+      to wait for the opponent. Bonus coins add extra points and raise the personal coin counter. Hit Restart whenever
+      you want to reset the clock and both scoreboards.
+    </p>
+  </main>
+
+  <script type="module">
+    import {
+      FilesetResolver,
+      HandLandmarker,
+      GestureRecognizer,
+      DrawingUtils
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0?module";
+
+    const videoElement = document.getElementById("webcam");
+    const canvasElement = document.getElementById("output");
+    const canvasCtx = canvasElement.getContext("2d", { willReadFrequently: false });
+    const startButton = document.getElementById("startButton");
+    const resetButton = document.getElementById("resetBatchButton");
+    const peopleCountEl = document.getElementById("peopleCount");
+    const handInfoEl = document.getElementById("handInfo");
+    const highFiveInfoEl = document.getElementById("highFiveInfo");
+    const statusEl = document.getElementById("status");
+    const scoreValueEls = {
+      1: document.getElementById("scoreValueP1"),
+      2: document.getElementById("scoreValueP2")
+    };
+    const timebarFillEl = document.getElementById("timebarFill");
+    const timebarScoreEl = document.getElementById("timebar");
+    
+    const targetDisplays = {
+      1: {
+        prompt: document.getElementById("player1Prompt"),
+        coins: document.getElementById("player1Coins")
+      },
+      2: {
+        prompt: document.getElementById("player2Prompt"),
+        coins: document.getElementById("player2Coins")
+      }
+    };
+    const clapOverlayEl = document.getElementById("clapOverlay");
+
+    const PLAYER_COLORS = {
+      1: "#4cc3ff",
+      2: "#ff5c74"
+    };
+
+    let gestureRecognizer;
+    let drawingUtils;
+    let videoRunning = false;
+    let lastVideoTime = -1;
+    let animationFrameId;
+    const highFiveTracker = new Map();
+    let lastHighFiveMessage = "No high fives yet.";
+    let lastHighFiveTime = 0;
+    const playerTargets = {
+      1: createEmptyPlayerState(),
+      2: createEmptyPlayerState()
+    };
+    const gestureVocabulary = [
+      { id: "Closed_Fist", name: "Closed Fist", emoji: "✊" },
+      { id: "Open_Palm", name: "Open Palm", emoji: "✋" },
+      { id: "Pointing_Up", name: "Pointing Up", emoji: "☝️" },
+      { id: "Victory", name: "Victory", emoji: "✌️" },
+      { id: "Thumb_Up", name: "Thumb Up", emoji: "👍" },
+      { id: "Thumb_Down", name: "Thumb Down", emoji: "👎" },
+      { id: "ILoveYou", name: "I Love You", emoji: "🤟" }
+    ];
+    const gestureLookup = Object.fromEntries(gestureVocabulary.map(item => [item.id, item]));
+    const DOUBLE_GESTURE_RATE = 0.4;
+    const CLAP_RATE = 0.18;
+    const GAME_DURATION_MS = 90_000;
+    const COIN_MIN_INTERVAL_MS = 4000;
+    const COIN_MAX_INTERVAL_MS = 8000;
+    const COIN_LIFETIME_MS = 3000;
+    const COIN_BLINK_MS = 1500;
+    const YOUTUBE_VIDEO_ID = "XnygT6ANLzQ";
+
+    let gameActive = false;
+    let gameStartTime = 0;
+    const scores = { 1: 0, 2: 0 };
+    let nextCoinSpawnTime = 0;
+    let lastRenderTimestamp = null;
+    const coins = [];
+    const coinEffects = [];
+    const playerCoinCounts = { 1: 0, 2: 0 };
+    let coinsSinceSpecial = 0;
+    let clapOverlayActive = false;
+    let clapOverlayStart = 0;
+    const CLAP_OVERLAY_DURATION = 1500;
+    let ytPlayer = null;
+    let ytReady = false;
+    const pendingAudioActions = [];
+
+    const ytScriptTag = document.createElement("script");
+    ytScriptTag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(ytScriptTag);
+
+    window.onYouTubeIframeAPIReady = function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player("ytPlayer", {
+        height: "0",
+        width: "0",
+        videoId: YOUTUBE_VIDEO_ID,
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          modestBranding: 1,
+          rel: 0,
+          playsinline: 1
+        },
+        events: {
+          onReady: () => {
+            ytReady = true;
+            if (ytPlayer?.setVolume) {
+              ytPlayer.setVolume(55);
+            }
+            while (pendingAudioActions.length) {
+              const action = pendingAudioActions.shift();
+              if (typeof action === "function") {
+                action();
+              }
+            }
+          },
+          onStateChange: event => {
+            if (event.data === YT.PlayerState.ENDED) {
+              playBackgroundAudio();
+            }
+          }
+        }
+      });
+    };
+
+    if (resetButton) {
+      resetButton.addEventListener("click", () => {
+        if (!videoRunning || !gestureRecognizer) {
+          return;
+        }
+        startGameSession();
+      });
+    }
+
+    startButton.addEventListener("click", async () => {
+      startButton.disabled = true;
+      statusEl.textContent = "Initializing hand tracker…";
+
+      try {
+        if (!videoRunning) {
+          await Promise.all([initializeCamera(), initializeGestureRecognizer()]);
+          videoRunning = true;
+          drawingUtils = new DrawingUtils(canvasCtx);
+          if (!animationFrameId) {
+            requestAnimationFrame(predictFrame);
+          }
+        }
+        startGameSession();
+        statusEl.textContent = "Match in progress. Show your hands!";
+        if (resetButton) {
+          resetButton.disabled = false;
+        }
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = "Failed to initialize. Please refresh and allow camera access.";
+        startButton.disabled = false;
+      }
+    });
+
+    async function initializeCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API is not available in this browser.");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user"
+        }
+      });
+
+      videoElement.srcObject = stream;
+
+      return new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          const width = videoElement.videoWidth || 1280;
+          const height = videoElement.videoHeight || 720;
+          canvasElement.width = width;
+          canvasElement.height = height;
+          resolve();
+        };
+      });
+    }
+
+    async function initializeGestureRecognizer() {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+      );
+
+      gestureRecognizer = await GestureRecognizer.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task"
+        },
+        runningMode: "VIDEO",
+        numHands: 4
+      });
+    }
+
+    function predictFrame() {
+      if (!videoRunning || !gestureRecognizer) {
+        return;
+      }
+
+      const nowInMs = performance.now();
+
+      if (videoElement.currentTime !== lastVideoTime) {
+        lastVideoTime = videoElement.currentTime;
+        const deltaSeconds = lastRenderTimestamp ? (nowInMs - lastRenderTimestamp) / 1000 : 0;
+        lastRenderTimestamp = nowInMs;
+        const results = gestureRecognizer.recognizeForVideo(videoElement, nowInMs);
+        renderHands(results, nowInMs, deltaSeconds);
+      }
+
+      updateGameClock(nowInMs);
+
+      animationFrameId = requestAnimationFrame(predictFrame);
+    }
+
+    function renderHands(results, nowInMs, deltaSeconds) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      if (!results?.landmarks?.length) {
+        updateCoins(nowInMs, deltaSeconds, []);
+        drawCoins(nowInMs);
+        updateClapOverlay(nowInMs);
+        peopleCountEl.textContent = "Detected players: 0";
+        handInfoEl.textContent = "Waiting for hands…";
+        highFiveInfoEl.textContent = "No high fives yet.";
+        highFiveTracker.clear();
+        lastHighFiveMessage = "No high fives yet.";
+        lastHighFiveTime = 0;
+        canvasCtx.restore();
+        return;
+      }
+
+      const processedHands = results.landmarks.map((landmarks, index) => {
+        const handedness = results.handednesses?.[index]?.[0];
+        const label = handedness?.categoryName || "Unknown";
+        const score = handedness?.score ?? 0;
+        const center = landmarks.reduce(
+          (acc, point) => {
+            acc.x += point.x;
+            acc.y += point.y;
+            return acc;
+          },
+          { x: 0, y: 0 }
+        );
+        center.x /= landmarks.length;
+        center.y /= landmarks.length;
+
+      const gestureCandidates = results.gestures?.[index];
+      const gesture = interpretGesture(gestureCandidates);
+      const displayCenterX = 1 - center.x;
+      const palmCenterNorm = getPalmCenterNormalized(landmarks);
+      const palmDisplay = palmCenterNorm
+        ? { x: 1 - palmCenterNorm.x, y: palmCenterNorm.y }
+        : null;
+
+      return {
+        index,
+        label,
+        score,
+        center,
+        displayCenterX,
+        palmCenter: palmCenterNorm,
+        palmDisplay,
+        landmarks,
+        gesture
+      };
+    });
+
+      const { playerCount, players, handToPlayer } = groupHandsIntoPlayers(processedHands);
+
+      peopleCountEl.textContent = `Detected players: ${playerCount}`;
+      handInfoEl.innerHTML = players.length
+        ? players
+            .map(player => {
+              const handLabels = player.hands
+                .map(hand => {
+                  const emoji = hand.gesture?.emoji ?? "❓";
+                  const name = hand.gesture?.name ?? "Unknown";
+                  const gestureScore = hand.gesture ? ` · ${(hand.gesture.score * 100).toFixed(0)}%` : "";
+                  return `${hand.label} ${emoji} ${name} ⭐ ${(hand.score * 100).toFixed(0)}%${gestureScore}`;
+                })
+                .join(" | ");
+              return `P${player.id}: ${handLabels}`;
+            })
+            .join("<br>")
+        : "Waiting for hands…";
+
+      handlePlayerProgress(players);
+
+      const highFiveEvents = detectHighFives(processedHands, handToPlayer, highFiveTracker);
+      const now = nowInMs;
+      if (highFiveEvents.length) {
+        lastHighFiveMessage = highFiveEvents
+          .map(event => event.label)
+          .join("<br>");
+        lastHighFiveTime = now;
+      }
+      highFiveInfoEl.innerHTML = now - lastHighFiveTime < 1200
+        ? lastHighFiveMessage
+        : "No high fives yet.";
+
+      processedHands.forEach((hand) => {
+        const playerId = handToPlayer.get(hand.index);
+        const color = PLAYER_COLORS[playerId] ?? "#c9d1ff";
+
+        drawingUtils.drawConnectors(
+          hand.landmarks,
+          HandLandmarker.HAND_CONNECTIONS,
+          { color, lineWidth: 2 }
+        );
+
+        const wrist = hand.landmarks[0];
+        const x = wrist.x * canvasElement.width;
+        const y = wrist.y * canvasElement.height;
+
+        const labelText = hand.gesture?.emoji ?? "";
+        if (labelText) {
+          const fontSize = 30;
+          const padding = 8;
+          canvasCtx.save();
+          canvasCtx.translate(canvasElement.width, 0);
+          canvasCtx.scale(-1, 1);
+          canvasCtx.font = `${fontSize}px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif`;
+          const metrics = canvasCtx.measureText(labelText);
+          const rectWidth = metrics.width + padding * 2;
+          const rectHeight = fontSize + padding;
+          let rectX = canvasElement.width - x - rectWidth / 2;
+          rectX = Math.max(0, Math.min(rectX, canvasElement.width - rectWidth));
+          let rectY = y - 48;
+          rectY = Math.max(0, rectY);
+
+          canvasCtx.fillStyle = "rgba(12, 14, 22, 0.65)";
+          canvasCtx.fillRect(rectX, rectY, rectWidth, rectHeight);
+
+          canvasCtx.fillStyle = color;
+          canvasCtx.textBaseline = "middle";
+          canvasCtx.fillText(labelText, rectX + padding, rectY + rectHeight / 2);
+          canvasCtx.restore();
+        }
+
+        const xs = hand.landmarks.map(point => point.x * canvasElement.width);
+        const ys = hand.landmarks.map(point => point.y * canvasElement.height);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const paddingPx = 36;
+
+        const boxX = Math.max(minX - paddingPx, 0);
+        const boxY = Math.max(minY - paddingPx, 0);
+        const boxWidth = Math.min(maxX + paddingPx, canvasElement.width) - boxX;
+        const boxHeight = Math.min(maxY + paddingPx, canvasElement.height) - boxY;
+
+        canvasCtx.save();
+        canvasCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        canvasCtx.lineWidth = 3;
+        canvasCtx.shadowColor = "rgba(255, 255, 255, 0.35)";
+        canvasCtx.shadowBlur = 12;
+        canvasCtx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        canvasCtx.restore();
+
+        const hitboxPadding = 18;
+        const hitboxX = Math.max(minX - hitboxPadding, 0);
+        const hitboxY = Math.max(minY - hitboxPadding, 0);
+        const hitboxWidth = Math.min(maxX + hitboxPadding, canvasElement.width) - hitboxX;
+        const hitboxHeight = Math.min(maxY + hitboxPadding, canvasElement.height) - hitboxY;
+        hand.hitbox = { x: hitboxX, y: hitboxY, width: hitboxWidth, height: hitboxHeight, playerId };
+
+        canvasCtx.save();
+        canvasCtx.strokeStyle = "rgba(150, 120, 255, 0.8)";
+        canvasCtx.lineWidth = 2;
+        canvasCtx.setLineDash([6, 6]);
+        canvasCtx.strokeRect(hitboxX, hitboxY, hitboxWidth, hitboxHeight);
+        canvasCtx.restore();
+      });
+
+      updateCoins(nowInMs, deltaSeconds, processedHands);
+      drawCoins(nowInMs);
+      updateClapOverlay(nowInMs);
+
+      canvasCtx.restore();
+    }
+
+    function groupHandsIntoPlayers(hands) {
+      const minScore = 0.35;
+      const confidenceFiltered = hands.filter(hand => (hand.score ?? 0) >= minScore);
+      const candidateHands = confidenceFiltered.length ? confidenceFiltered : hands;
+
+      const handToPlayer = new Map();
+      const players = [];
+
+      if (!candidateHands.length) {
+        return { playerCount: 0, players, handToPlayer };
+      }
+
+      const midPoint = 0.5;
+      const deadZone = 0.06;
+      const playerBuckets = {
+        1: [],
+        2: []
+      };
+      const ambiguous = [];
+
+      candidateHands.forEach(hand => {
+        const x = hand.displayCenterX ?? 0.5;
+        if (x < midPoint - deadZone) {
+          playerBuckets[1].push(hand);
+        } else if (x > midPoint + deadZone) {
+          playerBuckets[2].push(hand);
+        } else {
+          ambiguous.push(hand);
+        }
+      });
+
+      ambiguous.forEach(hand => {
+        const leftDistance = Math.abs((hand.displayCenterX ?? midPoint) - (midPoint - deadZone));
+        const rightDistance = Math.abs((hand.displayCenterX ?? midPoint) - (midPoint + deadZone));
+        if (playerBuckets[1].length === 0 && playerBuckets[2].length > 0) {
+          playerBuckets[1].push(hand);
+        } else if (playerBuckets[2].length === 0 && playerBuckets[1].length > 0) {
+          playerBuckets[2].push(hand);
+        } else if (leftDistance <= rightDistance) {
+          playerBuckets[1].push(hand);
+        } else {
+          playerBuckets[2].push(hand);
+        }
+      });
+
+      [1, 2].forEach(playerId => {
+        const bucket = playerBuckets[playerId];
+        if (!bucket.length) {
+          return;
+        }
+        bucket.forEach(hand => handToPlayer.set(hand.index, playerId));
+        const center = bucket.reduce(
+          (acc, hand) => {
+            acc.x += hand.displayCenterX ?? 0.5;
+            acc.y += hand.center.y ?? 0.5;
+            return acc;
+          },
+          { x: 0, y: 0 }
+        );
+        const count = bucket.length;
+        players.push({
+          id: playerId,
+          hands: bucket,
+          center: { x: center.x / count, y: center.y / count }
+        });
+      });
+
+      players.sort((a, b) => a.id - b.id);
+
+      const playerCount = players.filter(player => player.hands.length > 0).length;
+
+      return {
+        playerCount,
+        players,
+        handToPlayer
+      };
+    }
+
+    function distance2D(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.hypot(dx, dy);
+    }
+
+    function interpretGesture(gestureCandidates) {
+      if (!gestureCandidates?.length) {
+        return null;
+      }
+      const topCandidate = gestureCandidates[0];
+      if (!topCandidate) {
+        return null;
+      }
+      const meta = gestureLookup[topCandidate.categoryName];
+      if (!meta) {
+        return null;
+      }
+      return {
+        id: meta.id,
+        name: meta.name,
+        emoji: meta.emoji,
+        score: topCandidate.score ?? 0
+      };
+    }
+
+    function getPalmCenterNormalized(landmarks) {
+      if (!landmarks?.length) {
+        return null;
+      }
+      const wrist = landmarks[0];
+      const indexMcp = landmarks[5];
+      const pinkyMcp = landmarks[17];
+      return {
+        x: (wrist.x + indexMcp.x + pinkyMcp.x) / 3,
+        y: (wrist.y + indexMcp.y + pinkyMcp.y) / 3,
+        z: ((wrist.z ?? 0) + (indexMcp.z ?? 0) + (pinkyMcp.z ?? 0)) / 3
+      };
+    }
+
+    function computePalmPose(hand) {
+      const center = getPalmCenterNormalized(hand.landmarks);
+      return { center };
+    }
+
+    function detectHighFives(processedHands, handToPlayer, tracker) {
+      const activeKeys = new Set();
+      const contactDistance = 0.075;
+      const releaseDistance = 0.13;
+      const events = [];
+      const now = performance.now();
+
+      processedHands.forEach(hand => {
+        if (!hand.palmCenter) {
+          const pose = computePalmPose(hand);
+          hand.palmCenter = pose.center;
+        }
+        if (hand.palmCenter && !hand.palmDisplay) {
+          hand.palmDisplay = {
+            x: 1 - hand.palmCenter.x,
+            y: hand.palmCenter.y
+          };
+        }
+      });
+
+      for (let i = 0; i < processedHands.length; i += 1) {
+        for (let j = i + 1; j < processedHands.length; j += 1) {
+          const handA = processedHands[i];
+          const handB = processedHands[j];
+
+          const dist = distance3D(handA.palmCenter, handB.palmCenter);
+          const playerA = handToPlayer.get(handA.index) ?? null;
+          const playerB = handToPlayer.get(handB.index) ?? null;
+          const simpleClapThreshold = 0.095;
+
+          if (playerA && playerB && playerA === playerB && dist < simpleClapThreshold) {
+            registerPlayerClap(playerA, now);
+          }
+
+          const key = `${Math.min(handA.index, handB.index)}-${Math.max(handA.index, handB.index)}`;
+          activeKeys.add(key);
+          const record = tracker.get(key) ?? { wasClose: dist < releaseDistance, lastEvent: -Infinity };
+
+          const enteringContact = dist < contactDistance && !record.wasClose;
+          const cooldownSatisfied = now - record.lastEvent > 600;
+
+          if (enteringContact && cooldownSatisfied) {
+            const playerLabelA = playerA ? `P${playerA}` : "Unknown";
+            const playerLabelB = playerB ? `P${playerB}` : "Unknown";
+            const label = playerA && playerB
+              ? (playerA === playerB ? `${playerLabelA} high five` : `${playerLabelA} & ${playerLabelB} high five!`)
+              : `${playerLabelA} & ${playerLabelB} high five!`;
+            events.push({
+              players: [playerA, playerB],
+              hands: [handA.index, handB.index],
+              label
+            });
+            if (playerA && playerA === playerB) {
+              registerPlayerClap(playerA, now);
+            }
+            tracker.set(key, {
+              wasClose: true,
+              lastEvent: now
+            });
+          } else {
+            tracker.set(key, {
+              wasClose: dist < releaseDistance,
+              lastEvent: record.lastEvent
+            });
+          }
+        }
+      }
+
+      Array.from(tracker.keys()).forEach(key => {
+        if (!activeKeys.has(key)) {
+          tracker.delete(key);
+        }
+      });
+
+      return events;
+    }
+
+    function createEmptyPlayerState() {
+      return {
+        currentTarget: null,
+        satisfied: false,
+        clapAchieved: false,
+        clapTimestamp: 0
+      };
+    }
+
+    function randomGesture() {
+      return gestureVocabulary[Math.floor(Math.random() * gestureVocabulary.length)];
+    }
+
+    function pickDistinctGestures() {
+      const first = randomGesture();
+      let second = randomGesture();
+      let guard = 0;
+      while (second.id === first.id && guard < 5) {
+        second = randomGesture();
+        guard += 1;
+      }
+      if (second.id === first.id) {
+        const pool = gestureVocabulary.filter(g => g.id !== first.id);
+        if (pool.length) {
+          second = pool[Math.floor(Math.random() * pool.length)];
+        }
+      }
+      return [first, second];
+    }
+
+    function createTargetEntry(gestures) {
+      const normalized = gestures.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
+      const idSignature = normalized
+        .map(item => item.id)
+        .slice()
+        .sort()
+        .join("|");
+      return {
+        type: normalized.length === 1 ? "single" : "double",
+        gestures: normalized,
+        idSignature
+      };
+    }
+
+    function assignTarget(playerId, target) {
+      const state = playerTargets[playerId];
+      if (!state) {
+        return;
+      }
+      state.currentTarget = target;
+      state.satisfied = false;
+      state.clapAchieved = false;
+      state.clapTimestamp = 0;
+      updateTargetDisplay(playerId);
+    }
+
+    function assignNormalTarget(playerId) {
+      const isDouble = Math.random() < DOUBLE_GESTURE_RATE && gestureVocabulary.length >= 2;
+      const entry = isDouble
+        ? createTargetEntry(pickDistinctGestures())
+        : createTargetEntry([randomGesture()]);
+      assignTarget(playerId, entry);
+    }
+
+    function assignClapTarget(playerId) {
+      assignTarget(playerId, { type: "clap", gestures: [], idSignature: "clap" });
+    }
+
+    function assignRandomTarget(playerId) {
+      if (Math.random() < CLAP_RATE) {
+        assignClapTarget(playerId);
+      } else {
+        assignNormalTarget(playerId);
+      }
+    }
+
+    function assignTargetsForBoth() {
+      assignRandomTarget(1);
+      assignRandomTarget(2);
+    }
+
+    function increaseScore(playerId, amount) {
+      if (!scores[playerId]) {
+        scores[playerId] = 0;
+      }
+      scores[playerId] += amount;
+      updateScoreDisplay(playerId);
+    }
+
+    function updateScoreDisplay(playerId) {
+      const el = scoreValueEls[playerId];
+      if (el) {
+        el.textContent = String(scores[playerId] ?? 0);
+      }
+    }
+
+    function updatePlayerCoinDisplay(playerId) {
+      const display = targetDisplays[playerId];
+      if (display?.coins) {
+        display.coins.textContent = String(playerCoinCounts[playerId] ?? 0);
+      }
+    }
+
+    function incrementPlayerCoins(playerId, amount = 1) {
+      if (!playerCoinCounts[playerId]) {
+        playerCoinCounts[playerId] = 0;
+      }
+      playerCoinCounts[playerId] += amount;
+      updatePlayerCoinDisplay(playerId);
+    }
+
+    function updateTimebar(remainingMs) {
+      const clamped = Math.max(0, Math.min(GAME_DURATION_MS, remainingMs));
+      const ratio = GAME_DURATION_MS === 0 ? 0 : clamped / GAME_DURATION_MS;
+      if (timebarFillEl && timebarScoreEl) {
+        timebarFillEl.style.transform = `scaleX(${ratio})`;
+        const seconds = Math.max(0, clamped / 1000);
+        timebarScoreEl.textContent = `${seconds.toFixed(1)}s`;
+      }
+    }
+
+    function enqueueAudioAction(action) {
+      if (ytReady && ytPlayer) {
+        action();
+      } else {
+        pendingAudioActions.push(action);
+      }
+    }
+
+    function playBackgroundAudio() {
+      enqueueAudioAction(() => {
+        try {
+          ytPlayer.seekTo(0, true);
+        } catch (e) {
+          // ignore
+        }
+        ytPlayer.playVideo();
+      });
+    }
+
+    function stopBackgroundAudio() {
+      if (ytReady && ytPlayer) {
+        ytPlayer.stopVideo();
+      } else {
+        pendingAudioActions.push(() => {
+          ytPlayer.stopVideo();
+        });
+      }
+    }
+
+    function startGameSession() {
+      const now = performance.now();
+      gameActive = true;
+      gameStartTime = now;
+      coins.length = 0;
+      coinEffects.length = 0;
+      coinsSinceSpecial = 0;
+      lastRenderTimestamp = null;
+      scheduleNextCoin(now);
+      assignTargetsForBoth();
+      scores[1] = 0;
+      scores[2] = 0;
+      updateScoreDisplay(1);
+      updateScoreDisplay(2);
+      updateTimebar(GAME_DURATION_MS);
+      if (statusEl) {
+        statusEl.textContent = "Match in progress. Show your gestures!";
+      }
+      Object.keys(playerCoinCounts).forEach(id => {
+        playerCoinCounts[id] = 0;
+        updatePlayerCoinDisplay(Number(id));
+      });
+      clapOverlayActive = false;
+      if (clapOverlayEl) {
+        clapOverlayEl.style.opacity = "0";
+      }
+      stopBackgroundAudio();
+      playBackgroundAudio();
+    }
+
+    function updateGameClock(now) {
+      if (!gameActive) {
+        return;
+      }
+      const elapsed = now - gameStartTime;
+      const remaining = Math.max(0, GAME_DURATION_MS - elapsed);
+      updateTimebar(remaining);
+      if (remaining <= 0) {
+        endGameSession();
+      }
+    }
+
+    function triggerClapOverlay(now) {
+      if (!clapOverlayEl) {
+        return;
+      }
+      clapOverlayActive = true;
+      clapOverlayStart = now;
+      clapOverlayEl.textContent = "CLAP! 👏";
+      clapOverlayEl.style.opacity = "1";
+    }
+
+    function updateClapOverlay(now) {
+      if (!clapOverlayEl) {
+        return;
+      }
+      if (!clapOverlayActive) {
+        clapOverlayEl.style.opacity = "0";
+        return;
+      }
+      const elapsed = now - clapOverlayStart;
+      if (elapsed >= CLAP_OVERLAY_DURATION) {
+        clapOverlayActive = false;
+        clapOverlayEl.style.opacity = "0";
+        return;
+      }
+      const opacity = 1 - elapsed / CLAP_OVERLAY_DURATION;
+      clapOverlayEl.style.opacity = opacity.toFixed(2);
+    }
+
+    function endGameSession() {
+      if (!gameActive) {
+        return;
+      }
+      gameActive = false;
+      coins.length = 0;
+      coinEffects.length = 0;
+      coinsSinceSpecial = 0;
+      updateTimebar(0);
+      if (statusEl) {
+        const finalP1 = scores[1] ?? 0;
+        const finalP2 = scores[2] ?? 0;
+        statusEl.textContent = `Time's up! P1: ${finalP1} vs P2: ${finalP2}`;
+      }
+      [1, 2].forEach(playerId => {
+        const state = playerTargets[playerId];
+        if (state) {
+          state.satisfied = false;
+          state.currentTarget = null;
+        }
+      });
+      clapOverlayActive = false;
+      if (clapOverlayEl) {
+        clapOverlayEl.style.opacity = "0";
+      }
+      stopBackgroundAudio();
+      updateAllTargetDisplays();
+    }
+
+    function scheduleNextCoin(now) {
+      nextCoinSpawnTime = now + randomBetween(COIN_MIN_INTERVAL_MS, COIN_MAX_INTERVAL_MS);
+    }
+
+    function randomBetween(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function updateCoins(now, deltaSeconds, hands) {
+      if (!gameActive) {
+        coins.length = 0;
+        coinEffects.length = 0;
+        return;
+      }
+
+      if (now >= nextCoinSpawnTime) {
+        spawnCoin(now);
+        scheduleNextCoin(now);
+      }
+
+      const hitboxes = hands
+        .map(hand => hand.hitbox)
+        .filter(Boolean);
+
+      for (let i = coins.length - 1; i >= 0; i -= 1) {
+        const coin = coins[i];
+        const age = now - coin.spawnTime;
+        coin.y += coin.speed * deltaSeconds;
+        const wiggle = Math.sin((age / 1000) * coin.frequency) * coin.amplitude;
+        coin.x = Math.max(0.06, Math.min(0.94, coin.baseX + wiggle));
+
+        if (age > COIN_LIFETIME_MS || coin.y > 1.15) {
+          coins.splice(i, 1);
+          continue;
+        }
+
+        const coinPx = coin.x * canvasElement.width;
+        const coinPy = coin.y * canvasElement.height;
+        let collected = false;
+        let collectorId = null;
+
+        for (const box of hitboxes) {
+          if (
+            coinPx >= box.x &&
+            coinPx <= box.x + box.width &&
+            coinPy >= box.y &&
+            coinPy <= box.y + box.height
+          ) {
+            collected = true;
+            collectorId = box.playerId ?? null;
+            break;
+          }
+        }
+
+        if (collected && collectorId) {
+          increaseScore(collectorId, coin.value);
+          incrementPlayerCoins(collectorId);
+          spawnCoinEffect(now, coin);
+          coins.splice(i, 1);
+        } else if (collected) {
+          spawnCoinEffect(now, coin);
+          coins.splice(i, 1);
+        }
+      }
+    }
+
+    function drawCoins(now) {
+      for (let i = coinEffects.length - 1; i >= 0; i -= 1) {
+        const effect = coinEffects[i];
+        if (now - effect.spawnTime > effect.lifetime) {
+          coinEffects.splice(i, 1);
+        }
+      }
+
+      [...coins, ...coinEffects].forEach(coin => {
+        const age = now - coin.spawnTime;
+        let alpha = 1;
+        if (!coin.effect && age > COIN_BLINK_MS) {
+          alpha = (Math.floor((age - COIN_BLINK_MS) / 120) % 2) ? 0.35 : 1;
+        }
+
+        const x = coin.x * canvasElement.width;
+        const y = coin.y * canvasElement.height;
+        const radius = coin.radius;
+
+        canvasCtx.save();
+        canvasCtx.globalAlpha = alpha;
+        canvasCtx.translate(x, y);
+
+        if (coin.effect) {
+          drawCoinSplash(coin, age);
+        } else {
+          const gradient = canvasCtx.createRadialGradient(0, 0, radius * 0.25, 0, 0, radius);
+          if (coin.special) {
+            gradient.addColorStop(0, "rgba(140, 235, 255, 1)");
+            gradient.addColorStop(1, "rgba(70, 170, 255, 0.9)");
+          } else {
+            gradient.addColorStop(0, "rgba(255, 240, 180, 1)");
+            gradient.addColorStop(1, "rgba(255, 205, 70, 0.92)");
+          }
+          canvasCtx.fillStyle = gradient;
+          canvasCtx.beginPath();
+          canvasCtx.arc(0, 0, radius, 0, Math.PI * 2);
+          canvasCtx.fill();
+
+          canvasCtx.strokeStyle = coin.special ? "rgba(90, 200, 255, 0.95)" : "rgba(250, 220, 120, 0.9)";
+          canvasCtx.lineWidth = 2;
+          canvasCtx.beginPath();
+          canvasCtx.arc(0, 0, radius - 1, 0, Math.PI * 2);
+          canvasCtx.stroke();
+
+          canvasCtx.fillStyle = coin.special ? "rgba(230, 255, 255, 0.75)" : "rgba(255, 255, 255, 0.7)";
+          canvasCtx.beginPath();
+          canvasCtx.arc(-radius * 0.25, -radius * 0.25, radius * 0.18, 0, Math.PI * 2);
+          canvasCtx.fill();
+        }
+
+        canvasCtx.restore();
+      });
+    }
+
+    function drawCoinSplash(effect, age) {
+      const progress = Math.min(1, age / effect.lifetime);
+      const baseRadius = effect.radius;
+      const outerRadius = baseRadius * (1 + progress * 1.8);
+      const innerRadius = baseRadius * (0.6 + progress * 0.7);
+
+      const gradient = canvasCtx.createRadialGradient(0, 0, innerRadius * 0.4, 0, 0, outerRadius);
+      if (effect.special) {
+        gradient.addColorStop(0, "rgba(160, 245, 255, 0.9)");
+        gradient.addColorStop(1, "rgba(80, 190, 255, 0)");
+      } else {
+        gradient.addColorStop(0, "rgba(255, 233, 120, 0.9)");
+        gradient.addColorStop(1, "rgba(255, 190, 40, 0)");
+      }
+      canvasCtx.fillStyle = gradient;
+      canvasCtx.beginPath();
+      canvasCtx.arc(0, 0, outerRadius, 0, Math.PI * 2);
+      canvasCtx.fill();
+
+      canvasCtx.strokeStyle = effect.special
+        ? `rgba(120, 220, 255, ${1 - progress})`
+        : `rgba(255, 220, 80, ${1 - progress})`;
+      canvasCtx.lineWidth = 2;
+      canvasCtx.beginPath();
+      canvasCtx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+      canvasCtx.stroke();
+    }
+
+    function spawnCoin(now) {
+      const baseX = Math.random() * 0.8 + 0.1;
+      const allowSpecial = coinsSinceSpecial >= 2;
+      const isSpecial = allowSpecial && Math.random() < 1 / 3;
+      coinsSinceSpecial = isSpecial ? 0 : Math.min(coinsSinceSpecial + 1, 3);
+
+      const baseSpeed = randomBetween(0.28, 0.4);
+      const coin = {
+        spawnTime: now,
+        baseX,
+        x: baseX,
+        y: -0.08,
+        amplitude: randomBetween(0.02, 0.06),
+        frequency: randomBetween(2.0, 3.5),
+        speed: isSpecial ? baseSpeed * 1.9 : baseSpeed,
+        radius: isSpecial ? 16 : 22,
+        special: isSpecial,
+        value: isSpecial ? 3 : 1
+      };
+      coins.push(coin);
+    }
+
+    function spawnCoinEffect(now, coin) {
+      coinEffects.push({
+        effect: true,
+        spawnTime: now,
+        x: coin.x,
+        y: coin.y,
+        radius: coin.radius,
+        lifetime: coin.special ? 550 : 400,
+        special: coin.special
+      });
+    }
+
+    function handlePlayerProgress(players) {
+      const visible = new Map(players.map(player => [player.id, player]));
+
+      [1, 2].forEach(playerId => {
+        const state = playerTargets[playerId];
+        if (!state) {
+          return;
+        }
+
+        const target = getCurrentTarget(playerId);
+        if (!target) {
+          state.satisfied = true;
+          return;
+        }
+
+        if (target.type === "clap") {
+          state.satisfied = !!state.clapAchieved;
+        } else {
+          const playerData = visible.get(playerId);
+          if (!playerData) {
+            state.satisfied = false;
+          } else {
+            const gestures = playerData.hands
+              .map(hand => hand.gesture?.id)
+              .filter(Boolean);
+            state.satisfied = isTargetSatisfied(state, target, gestures);
+          }
+        }
+
+        if (state.currentTarget && state.satisfied) {
+          completePlayerTarget(playerId);
+        } else {
+          updateTargetDisplay(playerId);
+        }
+      });
+    }
+
+    function getCurrentTarget(playerId) {
+      const state = playerTargets[playerId];
+      if (!state) {
+        return null;
+      }
+      return state.currentTarget;
+    }
+
+    function isTargetSatisfied(state, target, gestures) {
+      if (target.type === "clap") {
+        return !!state?.clapAchieved;
+      }
+
+      if (!gestures.length) {
+        return false;
+      }
+
+      const pool = [...gestures];
+      return target.gestures.every(required => {
+        const idx = pool.indexOf(required.id);
+        if (idx === -1) {
+          return false;
+        }
+        pool.splice(idx, 1);
+        return true;
+      });
+    }
+
+    function completePlayerTarget(playerId) {
+      if (!gameActive) {
+        return;
+      }
+      const state = playerTargets[playerId];
+      if (!state || !state.currentTarget) {
+        return;
+      }
+
+      increaseScore(playerId, 2);
+      assignRandomTarget(playerId);
+    }
+
+    function registerPlayerClap(playerId, now) {
+      const state = playerTargets[playerId];
+      if (!state) {
+        return;
+      }
+      const target = state.currentTarget;
+      if (!target || target.type !== "clap") {
+        return;
+      }
+      if (!state.clapAchieved) {
+        state.clapAchieved = true;
+        state.satisfied = true;
+        state.clapTimestamp = now;
+        updateTargetDisplay(playerId);
+        triggerClapOverlay(now);
+        console.log("CLAPPED");
+      }
+    }
+
+    function updateAllTargetDisplays() {
+      updateTargetDisplay(1);
+      updateTargetDisplay(2);
+    }
+
+    function updateTargetDisplay(playerId) {
+      const display = targetDisplays[playerId];
+      const state = playerTargets[playerId] ?? createEmptyPlayerState();
+      playerTargets[playerId] = state;
+      const target = getCurrentTarget(playerId);
+
+      if (display?.prompt) {
+        display.prompt.classList.toggle("satisfied", !!state.satisfied);
+      }
+
+      if (!display) {
+        return;
+      }
+
+      if (!target) {
+        display.prompt.textContent = gameActive ? "…" : "–";
+        return;
+      }
+
+      if (target.type === "clap") {
+        display.prompt.textContent = "👏";
+      } else {
+        const emojis = target.gestures.map(item => item.emoji);
+        display.prompt.textContent = target.gestures.length === 2
+          ? emojis.join("  ")
+          : emojis.join("");
+      }
+    }
+
+    function distance3D(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dz = (a.z ?? 0) - (b.z ?? 0);
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    updateAllTargetDisplays();
+    updatePlayerCoinDisplay(1);
+    updatePlayerCoinDisplay(2);
+    updateScoreDisplay(1);
+    updateScoreDisplay(2);
+    updateTimebar(GAME_DURATION_MS);
+
+    window.addEventListener("beforeunload", () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+
+      if (gestureRecognizer) {
+        gestureRecognizer.close();
+      }
+
+      const stream = videoElement.srcObject;
+      if (stream instanceof MediaStream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+  </script>
+</body>
+</html>

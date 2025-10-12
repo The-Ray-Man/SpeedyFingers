@@ -6,11 +6,12 @@ import {
   Heading,
   VStack,
   HStack,
+  Flex,
   Text,
   Progress,
-  Card,
   Badge,
 } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
 import { Hands, type Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
@@ -28,6 +29,17 @@ const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 const PlayMode: React.FC = () => {
   // Get user from context
   const { user } = useUser();
+  const navigate = useNavigate();
+
+  const pageBackground = "radial-gradient(circle at top, #1f1f2e, #0d0d15)";
+  const panelBg = "rgba(28, 34, 60, 0.82)";
+  const softPanelBg = "rgba(22, 28, 52, 0.7)";
+  const borderColor = "rgba(255, 255, 255, 0.08)";
+  const mutedText = "rgba(215, 225, 255, 0.78)";
+  const accentGood = "#7bffb2";
+  const accentWarn = "#ff8a8a";
+  const accentPrimary = "#88c8ff";
+  const headingGlow = "0 0 26px rgba(120, 180, 255, 0.55)";
 
   // Game state
   const { playSound } = useRewardSound();
@@ -389,7 +401,7 @@ const PlayMode: React.FC = () => {
       });
       
       setTimeout(() => {
-        window.location.href = "/game-1";
+        navigate("/game-1", { replace: true });
       }, 2000);
     } catch (error) {
       console.error("Failed to submit score:", error);
@@ -409,203 +421,291 @@ const PlayMode: React.FC = () => {
   };
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <Toaster />
-      <VStack gap={6} align="stretch">
-        {/* Header */}
-        <Box textAlign="center">
-          <Heading size="2xl" mb={2}>
-            🎮 Play Mode - Gesture Game
-          </Heading>
-          <Text fontSize="lg" color="gray.600">
-            Match the gestures you've recorded!
-          </Text>
-        </Box>
+    <Box
+      bg={pageBackground}
+      minH="100vh"
+      py={{ base: 10, md: 16 }}
+      px={{ base: 4, md: 8 }}
+      color="#f5f7fb"
+    >
+      <Container maxW="6xl" p={0}>
+        <Toaster />
+        <VStack gap={10} align="stretch">
+          <video ref={videoRef} style={{ display: "none" }} width="640" height="480" playsInline muted />
+          <VStack gap={3} textAlign="center">
+            <Heading size="3xl" fontWeight="extrabold" textShadow={headingGlow}>
+              Solo Gesture Arena
+            </Heading>
+            <Text fontSize="lg" color={mutedText}>
+              Complete as many prompts as you can before the timer drains. Camera feed mirrors your moves in real time.
+            </Text>
+          </VStack>
 
-        {/* Loading State */}
-        {!gameStarted && !gameOver && (
-          <Card.Root p={8} maxW="md" mx="auto">
-            <VStack gap={4}>
-              {user && (
-                <Text fontSize="lg" fontWeight="bold" color="blue.600">
-                  Playing as: {user.username}
-                </Text>
-              )}
-              
-              {cameraError && (
-                <Box p={4} bg="red.50" borderRadius="md" w="full">
-                  <Text color="red.700" fontSize="sm">
-                    ⚠️ {cameraError}
+          {!gameStarted && !gameOver && (
+            <Box
+              bg={panelBg}
+              border={`1px solid ${borderColor}`}
+              borderRadius="2xl"
+              maxW="480px"
+              mx="auto"
+              px={8}
+              py={10}
+              boxShadow="0 20px 40px rgba(10, 15, 35, 0.6)"
+            >
+              <VStack gap={4}>
+                {user && (
+                  <Text fontSize="lg" fontWeight="bold" color="#cfe5ff">
+                    Playing as <Text as="span" color="#ffffff">{user.username}</Text>
                   </Text>
+                )}
+
+                {cameraError && (
+                  <Box
+                    w="full"
+                    bg="rgba(255, 120, 120, 0.18)"
+                    borderRadius="lg"
+                    border="1px solid rgba(255, 150, 150, 0.4)"
+                    p={4}
+                  >
+                    <Text color={accentWarn} fontSize="sm">
+                      ⚠️ {cameraError}
+                    </Text>
+                  </Box>
+                )}
+
+                {!isModelReady && (
+                  <Box
+                    w="full"
+                    bg="rgba(120, 180, 255, 0.14)"
+                    borderRadius="lg"
+                    border="1px solid rgba(140, 200, 255, 0.35)"
+                    p={4}
+                  >
+                    <VStack gap={2}>
+                      <Text color={accentPrimary} fontSize="lg" fontWeight="bold">
+                        ⏳ Loading hand tracker...
+                      </Text>
+                      <Text color={mutedText} fontSize="sm">
+                        Sit tight—your match will start the moment tracking is ready.
+                      </Text>
+                    </VStack>
+                  </Box>
+                )}
+              </VStack>
+            </Box>
+          )}
+
+          {gameStarted && !gameOver && (
+            <Flex direction={{ base: "column", lg: "row" }} gap={6} align="stretch">
+              <VStack
+                align="stretch"
+                gap={6}
+                flex={{ base: "none", lg: "0 0 360px" }}
+                order={{ base: 2, lg: 1 }}
+              >
+                <Box
+                  bg={panelBg}
+                  border={`1px solid ${borderColor}`}
+                  borderRadius="2xl"
+                  px={{ base: 4, md: 6 }}
+                  py={{ base: 4, md: 6 }}
+                >
+                  <HStack justify="space-between" gap={6} flexWrap="wrap">
+                    <VStack align="start" gap={1}>
+                      <Text fontSize="sm" color={mutedText}>
+                        Time Left
+                      </Text>
+                      <Heading size="lg" color={timeLeft <= 10 ? accentWarn : accentPrimary}>
+                        {timeLeft}s
+                      </Heading>
+                    </VStack>
+
+                    <VStack align="center" gap={1}>
+                      <Text fontSize="sm" color={mutedText}>
+                        Score
+                      </Text>
+                      <Heading size="lg" color={accentGood}>
+                        {score}
+                      </Heading>
+                    </VStack>
+
+                    <VStack align="end" gap={1}>
+                      <Text fontSize="sm" color={mutedText}>
+                        Symbols
+                      </Text>
+                      <Heading size="lg" color="#ffe066">
+                        {symbolsCompleted}
+                      </Heading>
+                    </VStack>
+                  </HStack>
                 </Box>
-              )}
-              
-              {!isModelReady && (
-                <Box p={4} bg="blue.50" borderRadius="md" w="full">
-                  <VStack gap={2}>
-                    <Text color="blue.700" fontSize="lg" fontWeight="bold">
-                      ⏳ Loading hand detection model...
-                    </Text>
-                    <Text color="blue.600" fontSize="sm">
-                      Game will start automatically
-                    </Text>
+
+                {currentSymbol && currentDefinition && (
+                  <Box
+                    bg={panelBg}
+                    border={`1px solid ${borderColor}`}
+                    borderRadius="2xl"
+                    px={{ base: 5, md: 6 }}
+                    py={{ base: 6, md: 7 }}
+                    textAlign="center"
+                    boxShadow="0 24px 40px rgba(10, 15, 35, 0.45)"
+                  >
+                    <VStack gap={4}>
+                      <HStack gap={3} justify="center">
+                        <Text fontSize="lg" fontWeight="bold">
+                          Match this symbol
+                        </Text>
+                        <Badge colorScheme="purple" borderRadius="full" px={3} py={1}>
+                          {currentDefinition.variants.length} variant
+                          {currentDefinition.variants.length !== 1 ? "s" : ""}
+                        </Badge>
+                      </HStack>
+                      <Heading size="4xl" textShadow="0 0 18px rgba(255, 255, 255, 0.35)">
+                        {currentSymbol}
+                      </Heading>
+                      {isLoading && (
+                        <Text fontSize="sm" color={mutedText}>
+                          Loading next prompt...
+                        </Text>
+                      )}
+                      <Button size="sm" variant="outline" colorScheme="purple" onClick={handleSkip}>
+                        Skip Symbol
+                      </Button>
+                    </VStack>
+                  </Box>
+                )}
+
+                <Box
+                  bg={softPanelBg}
+                  border={`1px solid ${borderColor}`}
+                  borderRadius="2xl"
+                  px={{ base: 4, md: 6 }}
+                  py={{ base: 5, md: 6 }}
+                >
+                  <VStack gap={3} align="stretch">
+                    <HStack justify="space-between">
+                      <Text fontWeight="bold">Match Similarity</Text>
+                      <Text
+                        fontWeight="bold"
+                        color={similarity >= SIMILARITY_THRESHOLD ? accentGood : mutedText}
+                      >
+                        {Math.round(similarity * 100)}%
+                      </Text>
+                    </HStack>
+                    <Progress.Root value={similarity * 100} size="lg">
+                      <Progress.Track bg="rgba(255, 255, 255, 0.12)">
+                        <Progress.Range
+                          bg={similarity >= SIMILARITY_THRESHOLD ? accentGood : "#7b5eff"}
+                        />
+                      </Progress.Track>
+                    </Progress.Root>
+                    {similarity >= SIMILARITY_THRESHOLD && (
+                      <Text color={accentGood} fontWeight="bold">
+                        ✓ Match! Loading next symbol...
+                      </Text>
+                    )}
                   </VStack>
                 </Box>
-              )}
-            </VStack>
-          </Card.Root>
-        )}
-
-        {/* Camera Feed */}
-        <Box position="relative" mx="auto" display={gameStarted && !gameOver ? "block" : "none"}>
-          <video
-            ref={videoRef}
-            style={{ display: "none" }}
-            width="640"
-            height="480"
-          />
-          <canvas
-            ref={canvasRef}
-            width="640"
-            height="480"
-            style={{
-              border: "2px solid #3182CE",
-              borderRadius: "8px",
-              maxWidth: "100%",
-              height: "auto",
-            }}
-          />
-          
-          <Box position="absolute" top={4} right={4}>
-            <Badge colorScheme={handDetected ? "green" : "red"}>
-              {handDetected ? "✓ Hand Detected" : "✗ No Hand"}
-            </Badge>
-          </Box>
-        </Box>
-
-        {/* Game Active */}
-        {gameStarted && !gameOver && (
-          <>
-            {/* Stats Bar */}
-            <HStack justify="space-between" px={4}>
-              <VStack align="start" gap={1}>
-                <Text fontSize="sm" color="gray.600">
-                  Time Left
-                </Text>
-                <Heading size="lg" color={timeLeft <= 10 ? "red.500" : "blue.600"}>
-                  {timeLeft}s
-                </Heading>
               </VStack>
 
-              <VStack align="center" gap={1}>
-                <Text fontSize="sm" color="gray.600">
-                  Score
-                </Text>
-                <Heading size="lg" color="green.600">
-                  {score}
+              <Box
+                position="relative"
+                flex="1"
+                borderRadius="2xl"
+                bg="linear-gradient(135deg, rgba(90, 80, 180, 0.35), rgba(25, 220, 250, 0.18))"
+                border={`1px solid ${borderColor}`}
+                boxShadow="0 32px 64px rgba(8, 12, 28, 0.65)"
+                overflow="hidden"
+                order={{ base: 1, lg: 2 }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  width="640"
+                  height="480"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "block",
+                  }}
+                />
+                <Box position="absolute" top={4} right={4}>
+                  <Badge
+                    variant="subtle"
+                    colorScheme={handDetected ? "green" : "red"}
+                    px={4}
+                    py={1}
+                    borderRadius="full"
+                  >
+                    {handDetected ? "✓ Hand Detected" : "✗ No Hand"}
+                  </Badge>
+                </Box>
+              </Box>
+            </Flex>
+          )}
+          {gameOver && (
+            <Box
+              bg={panelBg}
+              border={`1px solid ${borderColor}`}
+              borderRadius="2xl"
+              maxW="480px"
+              mx="auto"
+              px={{ base: 6, md: 10 }}
+              py={{ base: 8, md: 10 }}
+              textAlign="center"
+              boxShadow="0 28px 48px rgba(10, 15, 35, 0.55)"
+            >
+              <VStack gap={5}>
+                <Heading size="2xl" color={accentPrimary}>
+                  Time&apos;s Up!
                 </Heading>
-              </VStack>
-
-              <VStack align="end" gap={1}>
-                <Text fontSize="sm" color="gray.600">
-                  Symbols
-                </Text>
-                <Heading size="lg" color="purple.600">
-                  {symbolsCompleted}
-                </Heading>
-              </VStack>
-            </HStack>
-
-            {/* Current Symbol */}
-            {currentSymbol && currentDefinition && (
-              <Card.Root p={6} bg="blue.50">
-                <VStack gap={3}>
-                  <HStack>
-                    <Text fontSize="lg" fontWeight="bold">
-                      Match this symbol:
+                <VStack gap={2}>
+                  <Text fontSize="3xl" fontWeight="bold">
+                    Score: {score}
+                  </Text>
+                  <Text fontSize="xl" color={mutedText}>
+                    Symbols Completed: {symbolsCompleted}
+                  </Text>
+                  {user && (
+                    <Text fontSize="lg" color={mutedText}>
+                      Player: {user.username}
                     </Text>
-                    <Badge colorScheme="blue">
-                      {currentDefinition.variants.length} variant{currentDefinition.variants.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </HStack>
-                  <Heading size="6xl">{currentSymbol}</Heading>
-                  {isLoading && (
-                    <Text fontSize="sm" color="gray.600">Loading...</Text>
                   )}
-                  <Button size="sm" onClick={handleSkip} colorScheme="gray">
-                    Skip Symbol
+                </VStack>
+                <VStack gap={3} w="full">
+                  <Button colorScheme="green" size="lg" onClick={handleSubmitScore} w="full">
+                    Submit to Leaderboard
+                  </Button>
+                  <Button colorScheme="purple" size="lg" onClick={() => window.location.reload()} w="full">
+                    Play Again
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    colorScheme="purple"
+                    onClick={() => navigate("/play")}
+                    w="full"
+                  >
+                    Back to Menu
                   </Button>
                 </VStack>
-              </Card.Root>
-            )}
-
-            {/* Similarity Progress */}
-            <Card.Root p={4}>
-              <VStack gap={2}>
-                <HStack justify="space-between" w="full">
-                  <Text fontWeight="bold">Match Similarity</Text>
-                  <Text fontWeight="bold" color={similarity >= SIMILARITY_THRESHOLD ? "green.600" : "gray.600"}>
-                    {Math.round(similarity * 100)}%
-                  </Text>
-                </HStack>
-                <Progress.Root
-                  value={similarity * 100}
-                  size="lg"
-                  colorScheme={similarity >= SIMILARITY_THRESHOLD ? "green" : "blue"}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                {similarity >= SIMILARITY_THRESHOLD && (
-                  <Text color="green.600" fontWeight="bold">
-                    ✓ Match! Loading next symbol...
-                  </Text>
-                )}
               </VStack>
-            </Card.Root>
-          </>
-        )}
+            </Box>
+          )}
 
-        {/* Game Over */}
-        {gameOver && (
-          <Card.Root p={8} maxW="md" mx="auto">
-            <VStack gap={4}>
-              <Heading size="2xl" color="blue.600">
-                Game Over!
-              </Heading>
-              <VStack gap={2}>
-                <Text fontSize="3xl" fontWeight="bold">
-                  Final Score: {score}
-                </Text>
-                <Text fontSize="xl">Symbols Completed: {symbolsCompleted}</Text>
-                {user && (
-                  <Text fontSize="lg" color="gray.600">
-                    Player: {user.username}
-                  </Text>
-                )}
-              </VStack>
-              <Button colorScheme="green" size="lg" onClick={handleSubmitScore} w="full">
-                Submit to Leaderboard
-              </Button>
-              <Button colorScheme="blue" size="lg" onClick={() => window.location.reload()} w="full">
-                Play Again
-              </Button>
-              <Button size="lg" onClick={() => (window.location.href = "/")} w="full">
-                Back to Menu
-              </Button>
-            </VStack>
-          </Card.Root>
-        )}
-
-        {/* Back button */}
-        {!gameStarted && !gameOver && (
-          <Button onClick={() => (window.location.href = "/")} size="lg">
-            ← Back to Menu
-          </Button>
-        )}
-      </VStack>
-    </Container>
+          {!gameStarted && !gameOver && (
+            <Button
+              onClick={() => navigate("/play")}
+              size="lg"
+              variant="outline"
+              colorScheme="purple"
+              alignSelf="center"
+            >
+              ← Back to Menu
+            </Button>
+          )}
+        </VStack>
+      </Container>
+    </Box>
   );
 };
 

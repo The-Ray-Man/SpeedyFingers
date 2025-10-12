@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "@/pages/Home";
 import TutorialFinger from "@/pages/TutorialFinger";
 import TutorialBody from "@/pages/TutorialBody";
@@ -8,11 +8,13 @@ import FingerGameMenu from "./pages/FingerGameMenu";
 import BodyGameMenu from "./pages/BodyGameMenu";
 import { MusicProvider } from "./context/MusicContext";
 import { RewardSoundProvider } from "./context/rewardSoundContext";
-import FooterBar from "./footerBar"; 
-
-import ChangeUser from "@/pages/ChangeUser";
-import { useUser } from "@/context/UserContext";
 import DevMode from "./pages/DevMode";
+import { GestureProvider } from "./context/GestureContext";
+import ChangeUser from "@/pages/ChangeUser";
+import GameLive from "@/components/pages/GameLive";
+import PlayOptions from "@/pages/PlayOptions";
+{/* 
+
 
 const RequireUserLayout: React.FC = () => {
   const { user, loading } = useUser();
@@ -37,37 +39,31 @@ const RequireUserLayout: React.FC = () => {
     <FooterBar />
     </>
   );
-};
+}; */}
 
-
-
-const App = () => {
-  return (
-    <MusicProvider autoPlay={true} defaultVolume={0.5}>
-      <RewardSoundProvider>
-        <Router>
-
-          <Routes>
-          {/* Public route(s) */}
+const App = () => (
+  <MusicProvider autoPlay={true} defaultVolume={0.5}>
+    <RewardSoundProvider>
+      <GestureProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/play" element={<PlayOptions />} />
+          <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
+          <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
+          <Route path="/tutorialFinger" element={<TutorialFinger />} />
+          <Route path="/tutorialBody" element={<TutorialBody />} />
+          <Route path="/game-1" element={<FingerGame />} />
+          <Route path="/game-2" element={<BodyGame />} />
+          <Route path="/live_game" element={<GameLive />} />
           <Route path="/changeuser" element={<ChangeUser />} />
           <Route path="/dev-mode" element={<DevMode />} />
-
-          {/* Protected routes under a single guard */}
-          <Route element={<RequireUserLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
-            <Route path="/bodyGameMenu" element={<BodyGameMenu />} />
-            <Route path="/tutorialFinger" element={<TutorialFinger />} />
-            <Route path="/tutorialBody" element={<TutorialBody />} />
-            <Route path="/game-1" element={<FingerGame />} />
-            <Route path="/game-2" element={<BodyGame />} />
-          </Route>
         </Routes>
+      </Router>
+      </GestureProvider>
+    </RewardSoundProvider>
+  </MusicProvider>
+);
 
-        </Router>
-      </RewardSoundProvider>
-    </MusicProvider>
-  );
-};
 
 export default App;

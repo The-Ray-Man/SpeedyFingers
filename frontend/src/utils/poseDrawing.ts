@@ -178,7 +178,7 @@ export const drawTrackedPersons = (
   const opts = { ...defaultDrawOptions, ...options };
 
   trackedPeople.forEach((person) => {
-    const { pose, color, label } = person;
+    const { pose, color } = person;
 
     // Draw skeleton connections with person's color
     if (opts.showSkeleton) {
