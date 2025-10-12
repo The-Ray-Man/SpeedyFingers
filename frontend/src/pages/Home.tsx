@@ -24,6 +24,9 @@ const Home = () => {
       overflowY="auto"
       _dark={{ bg: "rgba(18, 22, 32, 0.75)" }}
     >
+      <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
       <Container maxW="6xl" py={{ base: 12, md: 16 }}>
         <VStack gap={16} align="stretch">
           {/* Header Section */}
@@ -185,7 +188,7 @@ const Home = () => {
           </SimpleGrid>
         </VStack>
       </Container>
-      <MusicButton></MusicButton>
+      
     </Box>
   );
 };

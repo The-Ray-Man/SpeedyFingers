@@ -22,6 +22,7 @@ import { submitScore } from "../leaderboardApi";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { useUser } from "@/context/UserContext";
 import { useRewardSound } from "../context/rewardSoundContext";
+import MusicButton from "@/components/design/MusicButton";
 
 const GAME_DURATION = 45; // 45 seconds
 const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
@@ -428,6 +429,9 @@ const PlayMode: React.FC = () => {
       px={{ base: 4, md: 8 }}
       color="#f5f7fb"
     >
+      <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
       <Container maxW="6xl" p={0}>
         <Toaster />
         <VStack gap={10} align="stretch">
