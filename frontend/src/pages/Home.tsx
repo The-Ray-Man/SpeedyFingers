@@ -57,7 +57,7 @@ const Home = () => {
 
   return (
     <Box
-      minH="calc(100vh - var(--footer-height))"
+      h="100vh"
       bg="gray.50"
       _dark={{ bg: "rgba(18, 22, 32, 0.75)" }}
     >

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { submitScore } from "@/leaderboardApi";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
@@ -298,6 +299,68 @@ const GAME_LIVE_STYLES = `
   letter-spacing: 0.02em;
 }
 
+.game-live-page .post-game-modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: rgba(10, 14, 24, 0.55);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+.game-live-page .post-game-card {
+  width: min(100%, 520px);
+  padding: 1.75rem 2rem;
+  border-radius: 24px;
+  background: linear-gradient(150deg, rgba(30, 32, 60, 0.9), rgba(45, 48, 88, 0.82));
+  border: 1px solid rgba(140, 200, 255, 0.35);
+  box-shadow: 0 24px 50px rgba(10, 15, 35, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.game-live-page .post-game-input {
+  width: 100%;
+  background: rgba(12, 16, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  color: #fefefe;
+  font-size: 1rem;
+}
+
+.game-live-page .post-game-input::placeholder {
+  color: rgba(210, 220, 255, 0.6);
+}
+
+.game-live-page .post-game-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.game-live-page .post-game-progress {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 80, 80, 0.2);
+  overflow: hidden;
+  border: 1px solid rgba(255, 120, 120, 0.45);
+}
+
+.game-live-page .post-game-progress-bar {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  background: linear-gradient(90deg, #ff4d6d, #ff7849);
+}
+
 @media (max-width: 1024px) {
   .game-live-page .side-column {
     width: 100%;
@@ -328,6 +391,15 @@ const GAME_LIVE_STYLES = `
 }
 `;
 
+type PostGameState = {
+  winnerId: number;
+  score: number;
+  symbols: number;
+  remainingMs: number;
+  submitting: boolean;
+  error?: string;
+};
+
 declare global {
   interface Window {
     YT?: {
@@ -354,6 +426,78 @@ const GameLive = () => {
   const ytPlayerContainerRef = useRef<HTMLDivElement>(null);
   const readyOverlayRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [postGamePrompt, setPostGamePrompt] = useState<PostGameState | null>(null);
+  const [teamName, setTeamName] = useState("");
+  const postGamePromptRef = useRef<PostGameState | null>(null);
+  const postGameDeadlineRef = useRef<number | null>(null);
+  const postGameTimerRef = useRef<number | null>(null);
+  const triggerDebugOverlayRef = useRef<(() => void) | null>(null);
+  const POST_GAME_TIMEOUT_MS = 30_000;
+
+  const updateStatusLine = (message: string) => {
+    if (statusMessageRef.current) {
+      statusMessageRef.current.textContent = message;
+    }
+  };
+
+  const exitToMenu = () => {
+    if (postGameTimerRef.current) {
+      cancelAnimationFrame(postGameTimerRef.current);
+      postGameTimerRef.current = null;
+    }
+    postGameDeadlineRef.current = null;
+    setPostGamePrompt(null);
+    setTeamName("");
+    updateStatusLine("Returning to menu...");
+    navigate("/play");
+  };
+
+  const handleSubmitWinner = async () => {
+    const prompt = postGamePromptRef.current;
+    if (!prompt) {
+      return;
+    }
+
+    const trimmedName = teamName.trim();
+    if (!trimmedName) {
+      setPostGamePrompt(prev => (prev ? { ...prev, error: "Please enter a name before submitting." } : prev));
+      return;
+    }
+
+    setPostGamePrompt(prev => (prev ? { ...prev, submitting: true, error: undefined } : prev));
+
+    try {
+      await submitScore({
+        name: trimmedName,
+        score: prompt.score,
+        symbols: prompt.symbols,
+        gameMode: "multi",
+        gameType: "finger"
+      });
+      setPostGamePrompt(prev => (prev ? { ...prev, submitting: false } : prev));
+      updateStatusLine("Score submitted! Returning to menu...");
+      setTimeout(() => exitToMenu(), 1500);
+    } catch (error) {
+      console.error(error);
+      setPostGamePrompt(prev =>
+        prev ? { ...prev, submitting: false, error: "Failed to submit score. Please try again." } : prev
+      );
+    }
+  };
+
+  useEffect(() => {
+    postGamePromptRef.current = postGamePrompt;
+    if (!postGamePrompt && postGameTimerRef.current) {
+      cancelAnimationFrame(postGameTimerRef.current);
+      postGameTimerRef.current = null;
+    }
+  }, [postGamePrompt]);
+
+  useEffect(() => () => {
+    if (postGameTimerRef.current) {
+      cancelAnimationFrame(postGameTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     const styleEl = document.createElement("style");
@@ -394,7 +538,6 @@ const GameLive = () => {
     };
     const clapOverlayEl = clapOverlayRef.current;
     const readyOverlayEl = readyOverlayRef.current as HTMLDivElement;
-    const statusMessageEl = statusMessageRef.current as HTMLDivElement;
 
     const context = canvasElement.getContext("2d", { willReadFrequently: false });
     if (!context) {
@@ -404,15 +547,59 @@ const GameLive = () => {
     }
     const canvasCtx = context as CanvasRenderingContext2D;
 
-    const setStatus = (message: string) => {
-      if (statusMessageEl) {
-        statusMessageEl.textContent = message;
-      }
-    };
-
     const READY_PROMPT_INITIAL = "Press Start to enable camera access.";
     const READY_PROMPT_READY = "Camera ready!<br/>Press Start again or show 👍👍 to begin.";
     const READY_PROMPT_REPLAY = "Great run!<br/>Press Start or show 👍👍 to play again.";
+
+    const startPostGameCountdown = () => {
+      if (!postGameDeadlineRef.current) {
+        return;
+      }
+      if (postGameTimerRef.current) {
+        cancelAnimationFrame(postGameTimerRef.current);
+      }
+      const tick = () => {
+        if (disposed || !postGameDeadlineRef.current || !postGamePromptRef.current) {
+          return;
+        }
+        const remaining = Math.max(0, postGameDeadlineRef.current - performance.now());
+        setPostGamePrompt(prev => (prev ? { ...prev, remainingMs: remaining } : prev));
+        if (remaining <= 0) {
+          exitToMenu();
+          return;
+        }
+        postGameTimerRef.current = requestAnimationFrame(tick);
+      };
+      postGameTimerRef.current = requestAnimationFrame(tick);
+    };
+
+    const triggerPostGamePrompt = (
+      winnerId: number,
+      score: number,
+      symbols: number,
+      statusMessage = "Great run! Enter your team name to submit the win or show 👍👍 to return to the menu."
+    ) => {
+      postGameDeadlineRef.current = performance.now() + POST_GAME_TIMEOUT_MS;
+      setTeamName(winnerId === 1 ? "Player 1" : "Player 2");
+      setPostGamePrompt({
+        winnerId,
+        score,
+        symbols,
+        remainingMs: POST_GAME_TIMEOUT_MS,
+        submitting: false
+      });
+      updateStatusLine(statusMessage);
+      if (resetButton) {
+        resetButton.disabled = false;
+        resetButton.textContent = "Skip";
+      }
+      if (startButton) {
+        startButton.disabled = true;
+      }
+      updateTargetDisplay(1);
+      updateTargetDisplay(2);
+      startPostGameCountdown();
+    };
 
     let cameraReady = false;
     let waitingForStart = true;
@@ -437,10 +624,15 @@ const GameLive = () => {
       waitingForStart = true;
       showReadyOverlay(message);
       startButton.disabled = false;
+      startButton.textContent = "Start";
       if (resetButton) {
         resetButton.disabled = true;
+        resetButton.textContent = "Cancel";
       }
-      setStatus(message.replace(/<br\s*\/?>/gi, " ").trim());
+      postGameDeadlineRef.current = null;
+      setPostGamePrompt(null);
+      setTeamName("");
+      updateStatusLine(message.replace(/<br\s*\/?>/gi, " ").trim());
     }
 
     function beginMatch() {
@@ -449,12 +641,15 @@ const GameLive = () => {
       }
       waitingForStart = false;
       hideReadyOverlay();
-      setStatus("Match in progress. Show your hands!");
+      updateStatusLine("Match in progress. Show your hands!");
       startButton.disabled = true;
       if (resetButton) {
         resetButton.disabled = false;
         resetButton.textContent = "Cancel";
       }
+      postGameDeadlineRef.current = null;
+      setPostGamePrompt(null);
+      setTeamName("");
       startGameSession();
     }
 
@@ -639,6 +834,16 @@ const GameLive = () => {
 
     startButton.addEventListener("click", handleStartClick);
 
+    triggerDebugOverlayRef.current = () => {
+      const debugWinner = 1;
+      triggerPostGamePrompt(
+        debugWinner,
+        scores[debugWinner] ?? 15,
+        playerCoinCounts[debugWinner] ?? 5,
+        "Debug: simulated match end"
+      );
+    };
+
     const beforeUnloadHandler = () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
@@ -670,7 +875,7 @@ const GameLive = () => {
       }
 
       startButton.disabled = true;
-      setStatus(cameraReady ? "Starting match…" : "Requesting camera access…");
+      updateStatusLine(cameraReady ? "Starting match…" : "Requesting camera access…");
 
       try {
         if (!cameraReady) {
@@ -679,7 +884,7 @@ const GameLive = () => {
             return;
           }
           enterWaitingState(READY_PROMPT_READY);
-          setStatus("Camera ready. Press Start or show 👍👍 to begin.");
+          updateStatusLine("Camera ready. Press Start or show 👍👍 to begin.");
           return;
         }
 
@@ -702,16 +907,21 @@ const GameLive = () => {
           message += "Please try again.";
         }
         enterWaitingState(READY_PROMPT_INITIAL);
-        setStatus(message);
+        updateStatusLine(message);
       }
     }
 
     function handleResetClick() {
+      if (postGamePromptRef.current) {
+        exitToMenu();
+        return;
+      }
       if (!cameraReady || !gestureRecognizer) {
         return;
       }
       if (gameActive) {
         endGameSession();
+        return;
       }
       enterWaitingState(READY_PROMPT_REPLAY);
     }
@@ -1273,6 +1483,9 @@ const GameLive = () => {
       const now = performance.now();
       gameActive = true;
       gameStartTime = now;
+      postGameDeadlineRef.current = null;
+      setPostGamePrompt(null);
+      setTeamName("");
       coins.length = 0;
       coinEffects.length = 0;
       coinsSinceSpecial = 0;
@@ -1284,7 +1497,7 @@ const GameLive = () => {
       updateScoreDisplay(1);
       updateScoreDisplay(2);
       updateTimebar(GAME_DURATION_MS);
-      setStatus("Match in progress. Show your gestures!");
+      updateStatusLine("Match in progress. Show your gestures!");
       Object.keys(playerCoinCounts).forEach(id => {
         const numericId = Number(id);
         playerCoinCounts[numericId] = 0;
@@ -1349,7 +1562,9 @@ const GameLive = () => {
       updateTimebar(0);
       const finalP1 = scores[1] ?? 0;
       const finalP2 = scores[2] ?? 0;
-      setStatus(`Time's up! P1: ${finalP1} vs P2: ${finalP2}`);
+      const winnerId = finalP1 >= finalP2 ? 1 : 2;
+      const winnerScore = scores[winnerId] ?? 0;
+      const winnerSymbols = playerCoinCounts[winnerId] ?? 0;
       [1, 2].forEach(playerId => {
         const state = playerTargets[playerId];
         if (state) {
@@ -1364,7 +1579,7 @@ const GameLive = () => {
       stopBackgroundAudio();
       updateAllTargetDisplays();
       lastGameEndTime = performance.now();
-      enterWaitingState(READY_PROMPT_REPLAY);
+      triggerPostGamePrompt(winnerId, winnerScore, winnerSymbols);
     }
 
     function scheduleNextCoin(now: number) {
@@ -1551,7 +1766,7 @@ const GameLive = () => {
     function handlePlayerProgress(players: Array<{ id: number; hands: any[] }>, now: number) {
       const visible = new Map(players.map(player => [player.id, player]));
       const thumbsUpReady = new Set<number>();
-      const waitingForAutoStart = !gameActive && cameraReady && waitingForStart;
+      const waitingForAutoStart = !gameActive && cameraReady && waitingForStart && !postGamePromptRef.current;
 
       [1, 2].forEach(playerId => {
         const state = playerTargets[playerId];
@@ -1562,9 +1777,12 @@ const GameLive = () => {
         const playerData = visible.get(playerId);
         const hasThumbUp = !!playerData?.hands.some(hand => hand.gesture?.id === "Thumb_Up");
 
+        if (hasThumbUp) {
+          lastPlayerThumbTime[playerId] = now;
+        }
+
         if (waitingForAutoStart && hasThumbUp) {
           thumbsUpReady.add(playerId);
-          lastPlayerThumbTime[playerId] = now;
         }
 
         const target = getCurrentTarget(playerId);
@@ -1601,6 +1819,16 @@ const GameLive = () => {
         now - lastGameEndTime > 800
       ) {
         beginMatch();
+      }
+
+      if (
+        postGamePromptRef.current &&
+        lastPlayerThumbTime[1] &&
+        lastPlayerThumbTime[2] &&
+        now - lastPlayerThumbTime[1] < 1500 &&
+        now - lastPlayerThumbTime[2] < 1500
+      ) {
+        exitToMenu();
       }
     }
 
@@ -1776,6 +2004,58 @@ const GameLive = () => {
               <div className="ready-overlay" ref={readyOverlayRef}>
                 Press Start to enable camera access.
               </div>
+              {postGamePrompt && (
+                <div className="post-game-modal">
+                  <div className="post-game-card">
+                    <div>
+                      <h3 style={{ fontSize: "1.6rem", margin: 0, color: "#f5f7fb" }}>
+                        Victory! Player {postGamePrompt.winnerId}
+                      </h3>
+                      <p style={{ margin: "0.35rem 0 0", color: "rgba(220, 230, 255, 0.8)" }}>
+                        Score: {postGamePrompt.score} · Bonus coins: {postGamePrompt.symbols}
+                      </p>
+                    </div>
+
+                    <div className="post-game-progress">
+                      <div
+                        className="post-game-progress-bar"
+                        style={{ transform: `scaleX(${Math.max(0, 1 - postGamePrompt.remainingMs / POST_GAME_TIMEOUT_MS)})` }}
+                      />
+                    </div>
+                    <p style={{ color: "rgba(255, 205, 205, 0.85)", fontSize: "0.9rem", margin: 0 }}>
+                      Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s
+                    </p>
+
+                    <label style={{ fontSize: "0.95rem", color: "rgba(235, 245, 255, 0.85)" }}>
+                      Team / Winner Name
+                    </label>
+                    <input
+                      className="post-game-input"
+                      value={teamName}
+                      onChange={event => setTeamName(event.target.value)}
+                      placeholder="Enter a name or both player names"
+                      disabled={postGamePrompt.submitting}
+                    />
+
+                    {postGamePrompt.error && (
+                      <p style={{ color: "#ff9a9a", margin: 0 }}>{postGamePrompt.error}</p>
+                    )}
+
+                    <div className="post-game-actions">
+                      <button
+                        type="button"
+                        disabled={postGamePrompt.submitting}
+                        onClick={handleSubmitWinner}
+                      >
+                        {postGamePrompt.submitting ? "Submitting…" : "Submit to Leaderboard"}
+                      </button>
+                      <button type="button" onClick={exitToMenu}>
+                        Skip & Return
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
@@ -1802,6 +2082,12 @@ const GameLive = () => {
           </button>
           <button type="button" className="back-button" onClick={() => navigate("/play")}>
             Back to Menu
+          </button>
+          <button
+            type="button"
+            onClick={() => triggerDebugOverlayRef.current?.()}
+          >
+            Debug Post-Game Overlay
           </button>
         </div>
 

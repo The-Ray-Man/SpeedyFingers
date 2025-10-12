@@ -9,7 +9,8 @@ import {
   SimpleGrid,
   Stack,
   Flex,
-  Spinner
+  Spinner,
+  HStack
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -58,7 +59,7 @@ const PlayOptions = () => {
 
   return (
     <Box
-      minH="calc(100vh - var(--footer-height))"
+      h="100vh"
       bg="gray.50"
       _dark={{ bg: "rgba(18, 22, 32, 0.75)" }}
       py={{ base: 10, md: 16 }}
@@ -73,13 +74,16 @@ const PlayOptions = () => {
           >
             ← Back to Home
           </Button>
-          <VStack gap={3} textAlign="center">
-            <Heading size="2xl">Choose Your Game Mode</Heading>
-            <Text maxW="3xl" color="gray.600" _dark={{ color: "gray.300" }}>
-              Jump into the cooperative Live Arena or hone your skills solo. Leaderboards update instantly so you always
-              know who holds the crown.
-            </Text>
-          </VStack>
+          <HStack gap="7em" align="center" justify="center">
+            <Heading size="5xl"><Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game {"->"}</Text>☝️</Heading>
+            <VStack gap={3} textAlign="center">
+              <Heading size="5xl">Choose Your Game Mode</Heading>
+              <Text maxW="xl" color="gray.600" _dark={{ color: "gray.300" }}>
+                Battle friends in real-time or show off your skills at mimicing more advanced shapes, emojis and even LaTeX shapes.
+              </Text>
+            </VStack>
+            <Heading size="5xl">✌️<Text fontSize={"md"} position="absolute" transform="translate(3em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
+          </HStack>
 
           {loading ? (
             <Flex justify="center" align="center" py={16}>
@@ -103,16 +107,16 @@ const PlayOptions = () => {
               <SimpleGrid columns={{ base: 1, lg: 2 }} gap={8} alignItems="stretch">
                 <ModeColumn
                   highlight
-                  title="Live Game Arena (1v1)"
-                  description="Team up, sync your gestures, and chase the co-op high score in our signature experience."
-                  ctaLabel="Enter Live Game"
+                  title="Gesture Battle"
+                  description="Compete with a friend in 90s of fast-paced gesture mimicry and coin collecting. May the faster mimicker win!"
+                  ctaLabel="Classic 1 vs. 1"
                   onClick={() => navigate("/live_game")}
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
                 />
                 <ModeColumn
                   title="Single Player Challenge"
-                  description="Master the prompts solo, build streaks, and climb the leaderboard at your own pace."
+                  description="Master mimicing of more complex shapes and test your LaTeX skills. Create a set of custom hand gestures and corresponding labels"
                   ctaLabel="Play Solo"
                   onClick={() => navigate("/game-1")}
                   entries={singlePlayerBoard}

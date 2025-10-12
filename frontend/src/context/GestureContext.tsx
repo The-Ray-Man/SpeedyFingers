@@ -88,8 +88,8 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
 
       {/* Loading indicator while initializing */}
       {loading && (
-        <div style={{ width: "100%", padding: "0.5rem 1rem" }}>
-          <Progress.Root value={null} width="100%" colorPalette="blue" size="md">
+        <div style={{ width: "100%", padding: "0.25rem 0.2rem", position: "fixed" }}>
+          <Progress.Root value={null} width="100%" colorPalette="blue" size="sm">
             <Progress.Track>
               <Progress.Range />
             </Progress.Track>

@@ -47,6 +47,7 @@ const App = () => (
       <GestureProvider>
       <Router>
         <Routes>
+
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<PlayOptions />} />
           <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
