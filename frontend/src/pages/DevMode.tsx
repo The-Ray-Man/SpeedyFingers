@@ -555,7 +555,7 @@ const DevMode: React.FC = () => {
   };
 
   return (
-    <Container maxW="container.xl" py={8}>
+    <Container maxW="container.xl" py={8} bg="rgba(15, 18, 36, 0.95)">
       <Toaster />
       <VStack gap={10} align="stretch">
         <Box position="relative">
@@ -563,7 +563,7 @@ const DevMode: React.FC = () => {
             <Heading size="xl" mb={2}>
               🛠️ Dev Mode - Gesture Library
             </Heading>
-            <Text fontSize="md" color="gray.600">
+            <Text fontSize="md" color="rgba(226, 232, 255, 0.75)">
               Create gestures and add training captures
             </Text>
           </Box>
@@ -571,10 +571,10 @@ const DevMode: React.FC = () => {
           {/* Admin Mode Control - Top Right */}
           <Box position="absolute" top={0} right={0}>
             {!adminMode ? (
-              <Card.Root p={3} bg="yellow.50" borderWidth="1px" borderColor="yellow.400" minW="280px">
+              <Card.Root p={3} bg="rgba(34, 28, 64, 0.9)" borderWidth="1px" borderColor="purple.500" minW="280px">
                 <HStack gap={2} align="stretch">
                   <HStack justify="space-between">
-                    <Badge colorScheme="red" fontSize="xs">
+                    <Badge colorScheme="purple" fontSize="xs">
                       🔒 Read-only
                     </Badge>
                   </HStack>
@@ -593,7 +593,7 @@ const DevMode: React.FC = () => {
                       flex={1}
                     />
                     <Button
-                      colorScheme="blue"
+                      colorScheme="purple"
                       onClick={handleAdminCodeSubmit}
                       disabled={!adminCodeInput}
                       size="sm"
@@ -604,12 +604,12 @@ const DevMode: React.FC = () => {
                 </HStack>
               </Card.Root>
             ) : (
-              <Card.Root p={3} bg="green.50" borderWidth="1px" borderColor="green.400" minW="280px">
+              <Card.Root p={3} bg="rgba(20, 40, 48, 0.9)" borderWidth="1px" borderColor="teal.400" minW="280px">
                 <HStack justify="space-between" gap={2}>
-                  <Badge colorScheme="green" fontSize="xs">
+                  <Badge colorScheme="teal" fontSize="xs">
                     🔓 Admin
                   </Badge>
-                  <Button size="xs" colorScheme="red" variant="outline" onClick={handleAdminLogout}>
+                  <Button size="xs" colorScheme="pink" variant="outline" onClick={handleAdminLogout}>
                     Logout
                   </Button>
                 </HStack>
@@ -620,7 +620,7 @@ const DevMode: React.FC = () => {
 
         <HStack gap={6} align="start">
           <VStack gap={4} flex={1}>
-            <Card.Root p={4} w="full">
+            <Card.Root p={4} w="full" bg="rgba(17, 22, 40, 0.9)">
               <VStack gap={4}>
                 
 
@@ -636,7 +636,7 @@ const DevMode: React.FC = () => {
                     width="640"
                     height="480"
                     style={{
-                      border: "2px solid #3182CE",
+                      border: "2px solid #805AD5",
                       borderRadius: "8px",
                       maxWidth: "100%",
                       height: "auto",
@@ -651,7 +651,7 @@ const DevMode: React.FC = () => {
                       left="50%"
                       transform="translate(-50%, -50%)"
                     >
-                      <Heading size="6xl" color="red.500">
+                      <Heading size="6xl" color="pink.400">
                         {countdown}
                       </Heading>
                     </Box>
@@ -659,7 +659,7 @@ const DevMode: React.FC = () => {
 
                   {cameraActive && (
                     <Box position="absolute" top={4} right={4}>
-                      <Badge colorScheme={handDetected ? "green" : "red"}>
+                      <Badge colorScheme={handDetected ? "teal" : "orange"}>
                         {handDetected ? "✓ Hand Detected" : "✗ No Hand"}
                       </Badge>
                     </Box>
@@ -668,7 +668,7 @@ const DevMode: React.FC = () => {
                   {cameraActive && (
                      <Box position="absolute" top={4} left={4}>
                   <Button 
-                    colorScheme="red" 
+                    colorScheme="pink" 
                     onClick={stopCamera}
                     size="lg"
                   >
@@ -682,16 +682,16 @@ const DevMode: React.FC = () => {
                 </Box>
 
                 {cameraActive && (
-                  <Box w="full" p={3} bg="gray.50" borderRadius="md" fontSize="sm">
-                    <Text fontWeight="bold" mb={1}>Debug Info:</Text>
-                    <Text whiteSpace="pre-line" fontFamily="monospace">
+                  <Box w="full" p={3} bg="rgba(32, 38, 72, 0.85)" borderRadius="md" fontSize="sm">
+                    <Text fontWeight="bold" mb={1} color="rgba(206, 214, 255, 0.9)">Debug Info:</Text>
+                    <Text whiteSpace="pre-line" fontFamily="monospace" color="rgba(184, 196, 255, 0.82)">
                       {debugInfo}
                     </Text>
                   </Box>
                 )}
                 {!cameraActive  && (
                   <Button 
-                    colorScheme="blue" 
+                    colorScheme="purple" 
                     onClick={startCamera}
                     disabled={!isModelReady}
                     size="lg"
@@ -703,16 +703,16 @@ const DevMode: React.FC = () => {
             </Card.Root>
 
             {selectedSymbol && (
-              <Card.Root p={4} w="full" bg="orange.50" borderWidth="2px" borderColor="orange.400">
+              <Card.Root p={4} w="full" bg="rgba(36, 30, 68, 0.85)" borderWidth="2px" borderColor="purple.500">
                 <VStack gap={4}>
                   <HStack justify="space-between" w="full">
                     <VStack align="start" gap={0}>
-                      <Text fontSize="xs" color="orange.700" fontWeight="bold">
+                      <Text fontSize="xs" color="rgba(255, 200, 170, 0.85)" fontWeight="bold">
                         Editing:
                       </Text>
-                      <Text fontSize="3xl">{selectedSymbol}</Text>
+                      <Text fontSize="3xl" color="rgba(240, 236, 255, 0.95)">{selectedSymbol}</Text>
                     </VStack>
-                    <Button size="sm" colorScheme="red" onClick={handleDeselectGesture}>
+                    <Button size="sm" colorScheme="pink" onClick={handleDeselectGesture}>
                       Done
                     </Button>
                   </HStack>
@@ -720,7 +720,7 @@ const DevMode: React.FC = () => {
                   {(selectedGestureDetail?.variants.length || 0) > 0 ? (
                     <Box w="full">
                       <HStack justify="space-between" mb={2}>
-                        <Text fontWeight="bold" fontSize="sm">Live Similarity:</Text>
+                        <Text fontWeight="bold" fontSize="sm" color="rgba(210, 218, 255, 0.85)">Live Similarity:</Text>
                         <Badge 
                           colorScheme={liveSimilarity >= getThreshold() ? "green" : liveSimilarity > 0 ? "orange" : "gray"}
                           fontSize="lg"
@@ -731,7 +731,7 @@ const DevMode: React.FC = () => {
                       <Box 
                         w="full" 
                         h="20px" 
-                        bg="gray.200" 
+                        bg="rgba(32, 36, 62, 0.85)" 
                         borderRadius="md" 
                         overflow="hidden"
                         position="relative"
@@ -739,7 +739,7 @@ const DevMode: React.FC = () => {
                         <Box
                           h="full"
                           w={`${liveSimilarity * 100}%`}
-                          bg={liveSimilarity >= getThreshold() ? "green.400" : "orange.400"}
+                          bg={liveSimilarity >= getThreshold() ? "rgba(78, 225, 184, 0.85)" : "rgba(255, 170, 92, 0.85)"}
                           transition="all 0.2s"
                         />
                         <Box
@@ -748,20 +748,20 @@ const DevMode: React.FC = () => {
                           top="0"
                           bottom="0"
                           w="2px"
-                          bg="red.500"
+                          bg="rgba(255, 92, 92, 0.9)"
                         />
                       </Box>
                       <HStack justify="space-between" mt={1}>
-                        <Text fontSize="xs" color="gray.600">0%</Text>
-                        <Text fontSize="xs" color="red.600" fontWeight="bold">
+                        <Text fontSize="xs" color="rgba(170, 182, 230, 0.65)">0%</Text>
+                        <Text fontSize="xs" color="rgba(255, 140, 140, 0.9)" fontWeight="bold">
                           Threshold: {Math.round(getThreshold() * 100)}%
                         </Text>
-                        <Text fontSize="xs" color="gray.600">100%</Text>
+                        <Text fontSize="xs" color="rgba(170, 182, 230, 0.65)">100%</Text>
                       </HStack>
                     </Box>
                   ) : (
-                    <Box w="full" p={4} bg="white" borderRadius="md" textAlign="center">
-                      <Text fontSize="sm" color="gray.600">
+                    <Box w="full" p={4} bg="rgba(44, 36, 86, 0.55)" borderRadius="md" textAlign="center">
+                      <Text fontSize="sm" color="rgba(210, 218, 255, 0.75)">
                         No captures yet. Add your first capture below!
                       </Text>
                     </Box>
@@ -769,7 +769,7 @@ const DevMode: React.FC = () => {
 
                   <Tooltip content="Admin mode required" disabled={adminMode}>
                     <Button
-                      colorScheme="green"
+                      colorScheme="purple"
                       size="lg"
                       w="full"
                       onClick={handleAddCapture}
@@ -781,7 +781,7 @@ const DevMode: React.FC = () => {
                     </Button>
                   </Tooltip>
 
-                  <Text fontSize="xs" color="orange.800" textAlign="center">
+                  <Text fontSize="xs" color="rgba(255, 216, 190, 0.8)" textAlign="center">
                     {(selectedGestureDetail?.variants.length || 0)} capture(s) recorded
                   </Text>
                 </VStack>
@@ -790,17 +790,17 @@ const DevMode: React.FC = () => {
           </VStack>
 
           <VStack gap={4} flex={1}>
-            <Card.Root p={4} w="full">
+            <Card.Root p={4} w="full" bg="rgba(19, 28, 52, 0.9)">
               <VStack gap={4} align="stretch">
                 <HStack justify="space-between">
-                  <Heading size="md">Gesture Library</Heading>
+                  <Heading size="md" color="white">Gesture Library</Heading>
                   <Button size="sm" onClick={loadSavedGestures}>
                     Refresh
                   </Button>
                 </HStack>
 
                 {isAddingNew ? (
-                  <Card.Root p={4} bg="blue.50" borderWidth="2px" borderColor="blue.400">
+                  <Card.Root p={4} bg="rgba(32, 42, 78, 0.85)" borderWidth="2px" borderColor="purple.400">
                     <VStack gap={3}>
                       <Input
                         placeholder="Enter symbol (e.g., ✊, λ, →)"
@@ -811,8 +811,8 @@ const DevMode: React.FC = () => {
                       />
                       <Box w="full">
                         <HStack justify="space-between" mb={2}>
-                          <Text fontSize="sm" fontWeight="bold">Threshold:</Text>
-                          <Badge colorScheme="blue">{newSymbolThreshold}%</Badge>
+                          <Text fontSize="sm" fontWeight="bold" color="rgba(210, 218, 255, 0.85)">Threshold:</Text>
+                          <Badge colorScheme="purple">{newSymbolThreshold}%</Badge>
                         </HStack>
                         <Input
                           type="range"
@@ -824,7 +824,7 @@ const DevMode: React.FC = () => {
                       </Box>
                       <HStack w="full">
                         <Button
-                          colorScheme="blue"
+                          colorScheme="purple"
                           onClick={handleCreateGesture}
                           flex={1}
                         >
@@ -846,7 +846,7 @@ const DevMode: React.FC = () => {
                 ) : (
                   <Tooltip content="Admin mode required" disabled={adminMode}>
                     <Button
-                      colorScheme="green"
+                      colorScheme="purple"
                       onClick={() => setIsAddingNew(true)}
                       w="full"
                       disabled={!adminMode}
@@ -859,24 +859,24 @@ const DevMode: React.FC = () => {
                 )}
 
                 {savedGestures.length === 0 ? (
-                  <Text color="gray.500" textAlign="center" py={8}>
+                  <Text color="rgba(194, 206, 255, 0.75)" textAlign="center" py={8}>
                     No gestures yet. Create one!
                   </Text>
                 ) : (
                   <Table.Root size="sm">
-                    <Table.Header>
+                    <Table.Header bg="rgba(46, 54, 96, 0.55)">
                       <Table.Row>
-                        <Table.ColumnHeader>Symbol</Table.ColumnHeader>
-                        <Table.ColumnHeader>Captures</Table.ColumnHeader>
-                        <Table.ColumnHeader>Actions</Table.ColumnHeader>
+                        <Table.ColumnHeader color="rgba(210, 218, 255, 0.82)">Symbol</Table.ColumnHeader>
+                        <Table.ColumnHeader color="rgba(210, 218, 255, 0.82)">Captures</Table.ColumnHeader>
+                        <Table.ColumnHeader color="rgba(210, 218, 255, 0.82)">Actions</Table.ColumnHeader>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
                       {savedGestures.map((gesture) => (
-                        <Table.Row key={gesture.symbol}>
-                          <Table.Cell fontSize="2xl">{gesture.symbol}</Table.Cell>
+                        <Table.Row key={gesture.symbol} _hover={{ bg: "rgba(46, 54, 92, 0.6)" }}>
+                          <Table.Cell fontSize="2xl" color="rgba(215, 200, 255, 0.92)">{gesture.symbol}</Table.Cell>
                           <Table.Cell>
-                            <Badge colorScheme={gesture.variantCount > 0 ? "green" : "gray"}>
+                            <Badge colorScheme={gesture.variantCount > 0 ? "purple" : "gray"}>
                               {gesture.variantCount}
                             </Badge>
                           </Table.Cell>
@@ -884,7 +884,7 @@ const DevMode: React.FC = () => {
                             <HStack gap={1}>
                               <Button
                                 size="xs"
-                                colorScheme={selectedSymbol === gesture.symbol ? "orange" : "blue"}
+                                colorScheme={selectedSymbol === gesture.symbol ? "orange" : "purple"}
                                 onClick={() => handleSelectGesture(gesture.symbol)}
                                 disabled={!cameraActive}
                               >
@@ -912,22 +912,22 @@ const DevMode: React.FC = () => {
               </VStack>
             </Card.Root>
 
-            <Card.Root p={4} w="full" bg="blue.50">
+            <Card.Root p={4} w="full" bg="rgba(46, 28, 74, 0.6)">
               <VStack gap={2} align="start">
-                <Heading size="sm" color="blue.700">How to use:</Heading>
-                <Text fontSize="sm" color="blue.900">
+                <Heading size="sm" color="rgba(232, 236, 255, 0.9)">How to use:</Heading>
+                <Text fontSize="sm" color="rgba(232, 236, 255, 0.8)">
                   1. Click "+ Add New Gesture" and enter a symbol
                 </Text>
-                <Text fontSize="sm" color="blue.900">
+                <Text fontSize="sm" color="rgba(232, 236, 255, 0.8)">
                   2. Click "Edit" to start adding captures
                 </Text>
-                <Text fontSize="sm" color="blue.900">
+                <Text fontSize="sm" color="rgba(232, 236, 255, 0.8)">
                   3. Make the gesture and click "Add Capture"
                 </Text>
-                <Text fontSize="sm" color="blue.900">
+                <Text fontSize="sm" color="rgba(232, 236, 255, 0.8)">
                   4. Add 2-3 captures per gesture for best results
                 </Text>
-                <Text fontSize="sm" fontWeight="bold" color="blue.700" mt={2}>
+                <Text fontSize="sm" fontWeight="bold" color="rgba(248, 250, 255, 0.9)" mt={2}>
                   💡 The similarity bar shows how well your current hand matches!
                 </Text>
               </VStack>
@@ -935,27 +935,38 @@ const DevMode: React.FC = () => {
           </VStack>
         </HStack>
 
-        <Button onClick={() => (window.location.href = "/")} size="lg">
+        <Button onClick={() => (window.location.href = "/")} size="lg" colorScheme="purple">
           ← Back to Menu
         </Button>
 
         <Dialog.Root open={isManageDialogOpen} onOpenChange={(e) => setIsManageDialogOpen(e.open)}>
-          <Dialog.Backdrop />
+          <Dialog.Backdrop bg="rgba(12, 16, 30, 0.55)" backdropFilter="blur(6px)" />
           <Dialog.Positioner>
-            <Dialog.Content maxW="2xl">
+            <Dialog.Content
+              maxW="2xl"
+              bg="rgba(20, 24, 40, 0.95)"
+            >
               <Dialog.Header>
-                <Dialog.Title>
-                  Manage: {selectedSymbol && <span style={{ fontSize: "2rem" }}>{selectedSymbol}</span>}
+                <Dialog.Title color="rgba(230, 234, 255, 0.95)">
+                  Manage:{" "}
+                  {selectedSymbol && (
+                    <Box as="span" fontSize="2rem" ml={2}>
+                      {selectedSymbol}
+                    </Box>
+                  )}
                 </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
                 {selectedGestureDetail && (
                   <VStack gap={4} align="stretch">
-                    <Card.Root p={4} bg="blue.50">
+                    <Card.Root
+                      p={4}
+                      bg="rgba(32, 42, 78, 0.85)"
+                    >
                       <VStack gap={3} align="stretch">
-                        <HStack justify="space-between">
-                          <Text fontWeight="bold">Match Threshold:</Text>
-                          <Badge colorScheme="blue" fontSize="md">{manageThreshold}%</Badge>
+                        <HStack justify="space-between" align="center">
+                          <Text fontWeight="bold" color="rgba(210, 218, 255, 0.85)">Match Threshold:</Text>
+                          <Badge colorScheme="purple" fontSize="md">{manageThreshold}%</Badge>
                         </HStack>
                         <Input
                           type="range"
@@ -966,7 +977,7 @@ const DevMode: React.FC = () => {
                         />
                         <Button
                           size="sm"
-                          colorScheme="blue"
+                          colorScheme="purple"
                           onClick={handleUpdateThreshold}
                           disabled={manageThreshold === Math.round((selectedGestureDetail.threshold || 0.55) * 100)}
                         >
@@ -976,31 +987,36 @@ const DevMode: React.FC = () => {
                     </Card.Root>
                     
                     {selectedGestureDetail.variants.length === 0 ? (
-                      <Text color="gray.500" textAlign="center" py={4}>
+                      <Text color="rgba(188, 198, 255, 0.75)" textAlign="center" py={4}>
                         No captures yet
                       </Text>
                     ) : (
                       <VStack gap={3} align="stretch">
-                        <Text fontWeight="bold" fontSize="sm">
+                        <Text fontWeight="bold" fontSize="sm" color="rgba(210, 218, 255, 0.82)">
                           Captures ({selectedGestureDetail.variants.length}):
                         </Text>
                         {selectedGestureDetail.variants.map((variant, index) => (
-                          <Card.Root key={variant.id} p={4} bg="gray.50">
-                            <HStack justify="space-between">
+                          <Card.Root
+                            key={variant.id}
+                            p={4}
+                            bg="rgba(28, 32, 60, 0.82)"
+                          >
+                            <HStack justify="space-between" align="center" gap={4}>
                               <VStack align="start" gap={1} flex={1}>
-                                <HStack>
-                                  <Badge colorScheme="blue">Capture {index + 1}</Badge>
+                                <HStack gap={2}>
+                                  <Badge colorScheme="purple">Capture {index + 1}</Badge>
                                   <Badge colorScheme="purple">
                                     {variant.handCount} hand{variant.handCount !== 1 ? 's' : ''}
                                   </Badge>
                                 </HStack>
-                                <Text fontSize="xs" color="gray.600">
+                                <Text fontSize="xs" color="rgba(188, 198, 255, 0.75)">
                                   {new Date(variant.createdAt).toLocaleString()}
                                 </Text>
                               </VStack>
                               <Button
                                 size="sm"
-                                colorScheme="red"
+                                colorScheme="pink"
+                                variant="outline"
                                 onClick={() => handleDeleteVariant(variant.id)}
                               >
                                 Delete
@@ -1023,7 +1039,7 @@ const DevMode: React.FC = () => {
                     🗑️ Delete All
                   </Button>
                   <Dialog.CloseTrigger asChild>
-                    <Button>Close</Button>
+                    <Button colorScheme="purple">Close</Button>
                   </Dialog.CloseTrigger>
                 </HStack>
               </Dialog.Footer>
