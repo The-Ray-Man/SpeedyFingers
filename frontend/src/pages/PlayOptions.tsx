@@ -246,6 +246,10 @@ const PlayOptions = () => {
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
                   holdProgress={multiHoldProgress}
+                  tutorialButton={{
+                    label: "📚 Tutorial",
+                    onClick: () => navigate("/tutorial")
+                  }}
                 />
                 <ModeColumn
                   title="Single Player Challenge"
