@@ -1,20 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Hands, HAND_CONNECTIONS, type Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import {
-  saveGesture,
-  getAllGestures,
-  getGestureBySymbol,
-  deleteGestureVariant,
-  deleteGesture,
-  updateGestureThreshold,
-  matchGesture,
-  type GestureSummary,
-  type GestureDefinition
-} from "../gestureApi";
-import { HAND_CONNECTIONS } from "@mediapipe/hands";
-import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition } from "../gestureApi";
+import { HAND_CONNECTIONS, Hands, type Results } from "@mediapipe/hands";
+import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition, matchGesture } from "../gestureApi";
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
 import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";

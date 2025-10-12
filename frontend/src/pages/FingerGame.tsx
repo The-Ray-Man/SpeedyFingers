@@ -24,190 +24,26 @@ import { Toaster, toaster } from "@/components/ui/toaster";
 import { useRewardSound } from "../context/rewardSoundContext";
 import MusicButton from "@/components/design/MusicButton";
 
-const FINGER_GAME_STYLES = `
-.finger-game-page {
-  color-scheme: dark;
-  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-  background: radial-gradient(circle at top, #1f1f2e, #0d0d15);
-  color: #f5f7fb;
-  min-height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1.5rem;
-  box-sizing: border-box;
-}
+const GAME_DURATION = 45; // 45 seconds
+const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
 const PlayMode: React.FC = () => {
   const navigate = useNavigate();
 
-.finger-game-page .back-button {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(251, 251, 251, 0.07));
-  color: #f5f7fb;
-  box-shadow: 0 12px 24px rgba(50, 50, 50, 0.38);
-}
+  const pageBackground = "radial-gradient(circle at top, #1f1f2e, #0d0d15)";
+  const panelBg = "rgba(28, 34, 60, 0.82)";
+  const softPanelBg = "rgba(22, 28, 52, 0.7)";
+  const borderColor = "rgba(255, 255, 255, 0.08)";
+  const mutedText = "rgba(215, 225, 255, 0.78)";
+  const accentGood = "#7bffb2";
+  const accentWarn = "#ff8a8a";
+  const accentPrimary = "#88c8ff";
+  const headingGlow = "0 0 26px rgba(120, 180, 255, 0.55)";
 
-.finger-game-page .back-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(96, 96, 96, 0.45);
-}
-
-.finger-game-page .status-line {
-  text-align: center;
-  font-size: 1rem;
-  color: rgba(225, 235, 255, 0.85);
-  letter-spacing: 0.02em;
-}
-
-.finger-game-page .post-game-modal {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background: rgba(10, 14, 24, 0.55);
-  backdrop-filter: blur(8px);
-  z-index: 5;
-}
-
-.finger-game-page .post-game-card {
-  width: min(100%, 520px);
-  padding: 1.75rem 2rem;
-  border-radius: 24px;
-  background: linear-gradient(150deg, rgba(30, 32, 60, 0.9), rgba(45, 48, 88, 0.82));
-  border: 1px solid rgba(140, 200, 255, 0.35);
-  box-shadow: 0 24px 50px rgba(10, 15, 35, 0.6);
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.finger-game-page .post-game-progress {
-  position: relative;
-  width: 100%;
-  height: 12px;
-  border-radius: 999px;
-  background: rgba(255, 80, 80, 0.2);
-  overflow: hidden;
-  border: 1px solid rgba(255, 120, 120, 0.45);
-}
-
-.finger-game-page .post-game-progress-bar {
-  position: absolute;
-  inset: 0;
-  transform-origin: left;
-  background: linear-gradient(90deg, #ff4d6d, #ff7849);
-}
-
-.finger-game-page .post-game-input {
-  width: 100%;
-  background: rgba(12, 16, 30, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 14px;
-  padding: 0.85rem 1rem;
-  color: #fefefe;
-  font-size: 1rem;
-}
-
-.finger-game-page .post-game-input::placeholder {
-  color: rgba(210, 220, 255, 0.6);
-}
-
-.finger-game-page .post-game-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-.finger-game-page .hidden-video {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-@media (max-width: 1024px) {
-  .finger-game-page .game-layout {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .finger-game-page .side-panel {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .finger-game-page .prompt-card,
-  .finger-game-page .summary-card,
-  .finger-game-page .metrics-card {
-    flex: 1 1 280px;
-  }
-}
-
-@media (max-width: 640px) {
-  .finger-game-page main {
-    gap: 1.25rem;
-  }
-
-  .finger-game-page .stage {
-    min-height: 300px;
-  }
-
-  .finger-game-page .side-panel {
-    flex-direction: column;
-    gap: 1rem;
-  }
-}
-`;
-
-const SIMILARITY_THRESHOLD = 0.55;
-const GAME_DURATION_MS = 60_000;
-const POST_GAME_TIMEOUT_MS = 30_000;
-
-type PostGameState = {
-  score: number;
-  symbols: number;
-  remainingMs: number;
-  submitting: boolean;
-  error?: string;
-};
-
-const FingerGame = () => {
-  const navigate = useNavigate();
-  const { user } = useUser();
+  // Game state
   const { playSound } = useRewardSound();
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const startButtonRef = useRef<HTMLButtonElement>(null);
-  const resetButtonRef = useRef<HTMLButtonElement>(null);
-  const statusMessageRef = useRef<HTMLDivElement>(null);
-  const timebarFillRef = useRef<HTMLDivElement>(null);
-  const timebarLabelRef = useRef<HTMLDivElement>(null);
-  const readyOverlayRef = useRef<HTMLDivElement>(null);
-  const countdownTimerRef = useRef<number | null>(null);
-  const handsRef = useRef<Hands | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
-  const matchCooldownRef = useRef(false);
-  const postGamePromptRef = useRef<PostGameState | null>(null);
-  const postGameDeadlineRef = useRef<number | null>(null);
-  const postGameTimerRef = useRef<number | null>(null);
-  const timerFrameRef = useRef<number | null>(null);
-  const gameStartTimeRef = useRef<number>(0);
-  const disposedRef = useRef(false);
-  const currentSymbolRef = useRef<string | null>(null);
-  const gameActiveRef = useRef(false);
-  const scoreRef = useRef(0);
-  const symbolsRef = useRef(0);
-  const cameraReadyRef = useRef(false);
-  const thumbHoldStartRef = useRef<number | null>(null);
-  const countdownActiveRef = useRef(false);
-
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
   const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
   const [currentDefinition, setCurrentDefinition] = useState<GestureDefinition | null>(null);
   const [currentThreshold, setCurrentThreshold] = useState(SIMILARITY_THRESHOLD);
@@ -316,139 +152,48 @@ const FingerGame = () => {
 
   // Initialize MediaPipe Hands
   useEffect(() => {
-    cameraReadyRef.current = cameraReady;
-  }, [cameraReady]);
+    const initializeHands = async () => {
+      try {
+        console.log("Initializing MediaPipe Hands...");
+        
+        const hands = new Hands({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          },
+        });
 
-  useEffect(() => {
-    setTeamName(user?.username ?? "");
-  }, [user]);
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.3,
+          minTrackingConfidence: 0.3,
+        });
 
-  const updateStatusLine = (message: string) => {
-    if (
-      statusMessageRef.current?.textContent === message &&
-      statusMessage === message
-    ) {
-      return;
-    }
-    setStatusMessage(message);
-    if (statusMessageRef.current) {
-      statusMessageRef.current.textContent = message;
-    }
-  };
-
-  const describeCameraError = (error: unknown) => {
-    let message = "Failed to access camera. ";
-    if (error instanceof Error) {
-      if (error.name === "NotAllowedError") {
-        message += "Please allow camera permissions and try again.";
-      } else if (error.name === "NotFoundError") {
-        message += "No compatible camera was found.";
-      } else if (error.name === "NotReadableError") {
-        message += "Camera is currently in use by another application.";
-      } else {
-        message += error.message;
+        hands.onResults(onHandsResults);
+        
+        handsRef.current = hands;
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        setIsModelReady(true);
+        console.log("MediaPipe Hands initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize MediaPipe Hands:", error);
+        setCameraError("Failed to load hand detection model. Please refresh the page.");
       }
-    } else {
-      message += "Please try again.";
-    }
-    return message;
-  };
-
-  const stopCamera = () => {
-    if (cameraRef.current) {
-      cameraRef.current.stop();
-      cameraRef.current = null;
-    }
-    if (videoRef.current?.srcObject instanceof MediaStream) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    cameraReadyRef.current = false;
-    if (!disposedRef.current) {
-      setCameraReady(false);
-    }
-  };
-
-  const updateTimebar = (remainingMs: number) => {
-    const fill = timebarFillRef.current;
-    const label = timebarLabelRef.current;
-    if (!fill || !label) {
-      return;
-    }
-    const clamped = Math.max(0, Math.min(GAME_DURATION_MS, remainingMs));
-    const ratio = clamped / GAME_DURATION_MS;
-    fill.style.transform = `scaleX(${ratio})`;
-    label.textContent = `${(clamped / 1000).toFixed(1)}s`;
-  };
-
-  const exitToMenu = () => {
-    if (postGameTimerRef.current) {
-      cancelAnimationFrame(postGameTimerRef.current);
-      postGameTimerRef.current = null;
-    }
-    postGameDeadlineRef.current = null;
-    postGamePromptRef.current = null;
-    setPostGamePrompt(null);
-    setTeamName(user?.username ?? "");
-    setCountdownText(null);
-    updateStatusLine("Returning to menu...");
-    navigate("/play");
-  };
-
-  const handleSubmitScore = async () => {
-    const prompt = postGamePromptRef.current;
-    if (!prompt) {
-      return;
-    }
-
-    const trimmedName = teamName.trim();
-    if (!trimmedName) {
-      setPostGamePrompt(prev => (prev ? { ...prev, error: "Please enter a name before submitting." } : prev));
-      return;
-    }
-
-    setPostGamePrompt(prev => (prev ? { ...prev, submitting: true, error: undefined } : prev));
-
-    try {
-      await submitScore({
-        name: trimmedName,
-        score: prompt.score,
-        symbols: prompt.symbols,
-        gameMode: "single",
-        gameType: "finger"
-      });
-      setPostGamePrompt(prev => (prev ? { ...prev, submitting: false } : prev));
-      updateStatusLine("Score submitted! Returning to menu...");
-      setTimeout(() => exitToMenu(), 1500);
-    } catch (error) {
-      console.error(error);
-      setPostGamePrompt(prev =>
-        prev ? { ...prev, submitting: false, error: "Failed to submit score. Please try again." } : prev
-      );
-    }
-  };
-
-  const startPostGameCountdown = () => {
-    if (!postGameDeadlineRef.current) {
-      return;
-    }
-    if (postGameTimerRef.current) {
-      cancelAnimationFrame(postGameTimerRef.current);
-    }
-    const tick = () => {
-      if (disposedRef.current || !postGameDeadlineRef.current || !postGamePromptRef.current) {
-        return;
-      }
-      const remaining = Math.max(0, postGameDeadlineRef.current - performance.now());
-      setPostGamePrompt(prev => (prev ? { ...prev, remainingMs: remaining } : prev));
-      if (remaining <= 0) {
-        exitToMenu();
-        return;
-      }
-      postGameTimerRef.current = requestAnimationFrame(tick);
     };
-    postGameTimerRef.current = requestAnimationFrame(tick);
-  };
+
+    initializeHands();
+
+    return () => {
+      if (cameraRef.current) {
+        cameraRef.current.stop();
+      }
+      if (handsRef.current) {
+        handsRef.current.close();
+      }
+    };
+  }, []);
 
   // Update game state ref
   useEffect(() => {
@@ -617,11 +362,7 @@ const FingerGame = () => {
           lineWidth: 1,
           radius: 3,
         });
-        endGameSession({ aborted: true });
-      } finally {
-        setLoadingPrompt(false);
       }
-    };
 
       // Check for thumbs up gesture if waiting to start game
       if (waitingForThumbsUpRef.current && !isGameActive && !isGameOver) {
@@ -718,68 +459,79 @@ const FingerGame = () => {
               matchCooldownRef.current = false;
             }, 1500);
           }
-        }
-
-        if (
-          !gameActiveRef.current &&
-          !countdownActiveRef.current &&
-          cameraReadyRef.current &&
-          !postGamePromptRef.current
-        ) {
-          if (thumbsUpHands >= 2) {
-            const now = performance.now();
-            if (thumbHoldStartRef.current === null) {
-              thumbHoldStartRef.current = now;
-              updateStatusLine("Thumbs detected. Hold steady to begin…");
-            } else if (now - thumbHoldStartRef.current > 1200) {
-              thumbHoldStartRef.current = null;
-              updateStatusLine("Starting round…");
-              loadCountdown();
-            }
-          } else {
-            thumbHoldStartRef.current = null;
-            if (
-              statusMessageRef.current &&
-              statusMessageRef.current.textContent !==
-                "Press Start or hold both thumbs up to begin."
-            ) {
-              updateStatusLine("Press Start or hold both thumbs up to begin.");
-            }
-          }
-        }
-      } else {
-        setHandDetected(false);
-        setSimilarity(prev => (gameActiveRef.current ? prev * 0.85 : 0));
-        thumbHoldStartRef.current = null;
-        if (!gameActiveRef.current && !postGamePromptRef.current) {
-          if (
-            statusMessageRef.current &&
-            statusMessageRef.current.textContent !==
-              "Press Start or hold both thumbs up to begin."
-          ) {
-            updateStatusLine("Press Start or hold both thumbs up to begin.");
-          }
+        } catch (error) {
+          console.error("Error matching gesture:", error);
         }
       }
+    } else {
+      setHandDetected(false);
+      currentLandmarksRef.current = null;
+      setSimilarity(0);
+    }
 
-      canvasCtx.restore();
-    };
+    canvasCtx.restore();
+  };
 
-    const startCameraStream = async () => {
-      await loadHandsModule();
-      const hands = handsRef.current;
-      if (!hands) {
-        throw new Error("Hands module not initialized");
-      }
+  // Handle successful match
+  const handleSymbolMatch = (matchSimilarity: number) => {
+    const points = Math.round(matchSimilarity * 300); // Up to 300 points per match
+    
+    setScore((prev) => {
+      const newScore = prev + points;
+      console.log(`Score updated: ${prev} -> ${newScore}`);
+      playSound();
+      return newScore;
+    });
+    
+    setSymbolsCompleted((prev) => {
+      const newCount = prev + 1;
+      console.log(`Symbols completed: ${prev} -> ${newCount}`);
+      return newCount;
+    });
+
+    toaster.create({
+      title: "Match!",
+      description: `+${points} points`,
+      type: "success",
+    });
+
+    // Load next symbol
+    loadNextSymbol();
+  };
+
+  // Load a random symbol
+  const loadNextSymbol = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getRandomGesture();
+      setCurrentSymbol(response.symbol);
+      setCurrentDefinition(response.definition);
+      setSimilarity(0);
+    } catch (error) {
+      console.error("Failed to load random gesture:", error);
+      toaster.create({
+        title: "Error",
+        description: "No gestures available. Please record some gestures in Dev Mode first!",
+        type: "error",
+      });
+      endGame();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Start the game (camera already running)
   const startGame = async () => {
     console.log("Starting game...");
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 960, height: 540 },
-        audio: false
+    if (!handsRef.current) {
+      toaster.create({
+        title: "Error",
+        description: "Hand detection model is still loading. Please wait.",
+        type: "error",
       });
+      return;
+    }
 
     if (!cameraRef.current) {
       toaster.create({
@@ -825,34 +577,20 @@ const FingerGame = () => {
     }
   };
 
-    const handleResetClick = () => {
-      if (gameActiveRef.current) {
-        clearCountdown();
-        endGameSession({ aborted: true });
-        showReadyOverlay("Round cancelled.<br/>Press Start to try again.");
-        startButton.disabled = false;
-        if (resetButton) {
-          resetButton.disabled = true;
-          resetButton.textContent = "Cancel";
-        }
-        return;
-      }
+  // End the game
+  const endGame = () => {
+    if (gameTimerRef.current) {
+      clearInterval(gameTimerRef.current);
+    }
 
     // Don't stop the camera - keep it running for thumbs up detection
     // if (cameraRef.current) {
     //   cameraRef.current.stop();
     // }
 
-    const enterWaitingState = (message: string) => {
-      showReadyOverlay(message);
-      startButton.textContent = "Start";
-      startButton.disabled = false;
-      if (resetButton) {
-        resetButton.disabled = true;
-        resetButton.textContent = "Cancel";
-      }
-      updateStatusLine(message.replace(/<br\s*\/?>/gi, " ").trim());
-    };
+    setGameStarted(false);
+    setGameOver(true);
+  };
 
   // Submit score
   const handleSubmitScore = async () => {
@@ -1307,4 +1045,4 @@ const FingerGame = () => {
   );
 };
 
-export default FingerGame;
+export default PlayMode;
