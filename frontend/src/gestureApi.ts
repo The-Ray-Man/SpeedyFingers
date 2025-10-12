@@ -2,7 +2,7 @@
  * API client for gesture management endpoints
  */
 
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = "/api";
 
 export interface GestureVariant {
   id: string;
@@ -17,6 +17,7 @@ export interface GestureVariant {
 export interface GestureDefinition {
   symbol: string;
   variants: GestureVariant[];
+  threshold: number; // Similarity threshold for this gesture (default 0.55)
 }
 
 export interface GestureSubmission {
@@ -26,6 +27,7 @@ export interface GestureSubmission {
   activeFingers?: Record<string, boolean>;
   activeRegions?: Record<string, boolean>;
   metadata?: Record<string, any>;
+  threshold?: number; // Similarity threshold for this gesture (default 0.55)
 }
 
 export interface MatchRequest {
@@ -37,6 +39,7 @@ export interface MatchResponse {
   similarity: number;
   variantId: string;
   confidence: number;
+  threshold: number; // The threshold configured for this gesture
 }
 
 export interface GestureSummary {
@@ -134,6 +137,36 @@ export async function deleteGestureVariant(symbol: string, variantId: string): P
 
   if (!response.ok) {
     throw new Error(`Failed to delete gesture variant: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Update the threshold for a specific gesture
+ */
+export async function updateGestureThreshold(symbol: string, threshold: number): Promise<{ success: boolean; symbol: string; threshold: number }> {
+  const response = await fetch(`${API_BASE_URL}/gestures/${encodeURIComponent(symbol)}/threshold?threshold=${threshold}`, {
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update gesture threshold: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete an entire gesture symbol with all its variants
+ */
+export async function deleteGesture(symbol: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/gestures/${encodeURIComponent(symbol)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete gesture: ${response.statusText}`);
   }
 
   return response.json();
