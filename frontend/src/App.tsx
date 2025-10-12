@@ -48,7 +48,8 @@ const App = () => (
       <GestureProvider>
         
       <Router>
-        <MusicButton />
+        
+        
         <Routes>
 
           <Route path="/" element={<Home />} />

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
 import { useEffect, useState } from "react";
+import MusicButton from "@/components/design/MusicButton";
 
 interface TutorialSlide {
     title: string;
@@ -153,6 +154,10 @@ const Tutorial: React.FC = () => {
     };
 
     return (
+        <>
+        <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
         <Box minH="80vh"  bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
             <Container maxW="80vw">
                 <Card.Root size="lg" boxShadow="xl">
@@ -299,6 +304,7 @@ const Tutorial: React.FC = () => {
                 </Card.Root>
             </Container>
         </Box>
+        </>
     );
 };
 
