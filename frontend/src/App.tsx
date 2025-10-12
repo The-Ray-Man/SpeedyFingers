@@ -13,6 +13,7 @@ import { GestureProvider } from "./context/GestureContext";
 import ChangeUser from "@/pages/ChangeUser";
 import GameLive from "@/components/pages/GameLive";
 import PlayOptions from "@/pages/PlayOptions";
+import MusicButton from "./components/design/MusicButton.tsx";
 {/* 
 
 
@@ -45,7 +46,9 @@ const App = () => (
   <MusicProvider autoPlay={true} defaultVolume={0.5}>
     <RewardSoundProvider>
       <GestureProvider>
+        
       <Router>
+        <MusicButton />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<PlayOptions />} />
@@ -60,6 +63,7 @@ const App = () => (
           <Route path="/dev-mode" element={<DevMode />} />
         </Routes>
       </Router>
+   
       </GestureProvider>
     </RewardSoundProvider>
   </MusicProvider>

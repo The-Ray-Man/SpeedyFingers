@@ -18,6 +18,7 @@ import {
   type LeaderboardEntry
 } from "@/leaderboardApi";
 import HomeButton from "../components/design/ToHome.tsx";
+import MusicButton from "../components/design/MusicButton.tsx";
 
 const PlayOptions = () => {
   const navigate = useNavigate();
@@ -117,6 +118,7 @@ const PlayOptions = () => {
           )}
         </VStack>
       </Container>
+      <MusicButton></MusicButton>
     </Box>
   );
 };

@@ -14,6 +14,7 @@ import {
 import { FiActivity, FiCamera, FiPlayCircle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import type { ElementType } from "react";
+import MusicButton from "../components/design/MusicButton.tsx";
 // import { useGesture } from "../context/GestureContext";
 // import { useNavigate } from "react-router-dom";
 // import { useEffect, useState } from "react";
@@ -154,6 +155,7 @@ const Home = () => {
           </SimpleGrid>
         </VStack>
       </Container>
+      <MusicButton></MusicButton>
     </Box>
   );
 };
@@ -194,7 +196,9 @@ const FeatureCard = ({ icon, title, description, bg }: FeatureCardProps) => (
     <Text color="gray.600" _dark={{ color: "gray.300" }}>
       {description}
     </Text>
+     
   </Box>
+  
 );
 
 //         {/* Game Selection */}
