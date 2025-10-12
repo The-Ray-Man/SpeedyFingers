@@ -13,6 +13,10 @@ import FooterBar from "./footerBar";
 import ChangeUser from "@/pages/ChangeUser";
 import { useUser } from "@/context/UserContext";
 import DevMode from "./pages/DevMode";
+import { GestureProvider } from "./context/GestureContext";
+
+
+
 
 const RequireUserLayout: React.FC = () => {
   const { user, loading } = useUser();
@@ -45,6 +49,7 @@ const App = () => {
   return (
     <MusicProvider autoPlay={true} defaultVolume={0.5}>
       <RewardSoundProvider>
+        <GestureProvider>
         <Router>
 
           <Routes>
@@ -65,6 +70,7 @@ const App = () => {
         </Routes>
 
         </Router>
+        </GestureProvider>
       </RewardSoundProvider>
     </MusicProvider>
   );
