@@ -15,6 +15,7 @@ interface GestureContextType {
   enabled: boolean;
   gesture: TwoHandGestureState | null;
   toggleGesture: () => void;
+  setGestureEnabled: (enabled: boolean) => void;
   loading: boolean;
 }
 
@@ -22,6 +23,7 @@ const GestureContext = createContext<GestureContextType>({
   enabled: false,
   gesture: null,
   toggleGesture: () => {},
+  setGestureEnabled: () => {},
   loading: false,
 });
 
@@ -81,15 +83,19 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
         setEnabled(!enabled);
     }, [enabled]);
 
+  const setGestureEnabled = useCallback((value: boolean) => {
+    console.log("[GestureContext] Setting gesture enabled:", value);
+    setEnabled(value);
+  }, []);
 
   return (
-    <GestureContext.Provider value={{ enabled, gesture, toggleGesture, loading }}>
+    <GestureContext.Provider value={{ enabled, gesture, toggleGesture, setGestureEnabled, loading }}>
       {children}
 
       {/* Loading indicator while initializing */}
       {loading && (
-        <div style={{ width: "100%", padding: "0.5rem 1rem" }}>
-          <Progress.Root value={null} width="100%" colorPalette="blue" size="md">
+        <div style={{ width: "100%", padding: "0.25rem 0.2rem", position: "fixed" }}>
+          <Progress.Root value={null} width="100%" colorPalette="blue" size="sm">
             <Progress.Track>
               <Progress.Range />
             </Progress.Track>
