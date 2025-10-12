@@ -4,38 +4,36 @@ import { FaHome } from 'react-icons/fa';
 
 const HomeButton = () => {
   const navigate = useNavigate();
+  const buttonColor = "#2914a0ff"; // Customize this color
 
   return (
     <Button 
       onClick={() => navigate('/')}
       variant="outline"
-      borderColor="#7451AA"
-      color="#7451AA"
-      size="lg"
+      color={buttonColor}
+      borderColor={buttonColor}
+      size="md"
       borderRadius="full"
-      borderWidth="2px"
-      px={8}
-      py={6}
-      fontWeight="bold"
-      fontSize="md"
-      mb={4}
+      px={6}
+      py={2.5}
+      fontWeight="semibold"
+      fontSize="sm"
       _hover={{ 
-        transform: "translateY(-2px)",
-        shadow: "lg",
-        bg: "#F5F4FF",
-        borderColor: "#5B57B3"
+        bg: `${buttonColor}15`,
+        transform: "translateY(-2px)"
       }}
       _active={{
-        transform: "translateY(0)",
-        shadow: "md"
+        transform: "translateY(0px)"
       }}
       transition="all 0.2s ease-in-out"
-      boxShadow="md"
       display="flex"
       alignItems="center"
       gap={2}
+      position="absolute"
+      top={8}
+      left={8}
     >
-      <FaHome />
+      <FaHome size={16} />
       Home
     </Button>
   );

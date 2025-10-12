@@ -1,9 +1,10 @@
-import React from 'react';
+
 import { 
     Box, 
     Container, 
     Heading, 
     Text, 
+    VStack, 
     HStack,
     Button,
     Card,
@@ -14,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
+import { useEffect, useState } from "react";
 
 interface TutorialSlide {
     title: string;
@@ -24,14 +26,15 @@ interface TutorialSlide {
 
 const Tutorial: React.FC = () => {
     const navigate = useNavigate();
+
     const { setVolumePercentage } = useMusic();
-    const [currentSlideIndex, setCurrentSlideIndex] = React.useState(0);
-    const [countdown, setCountdown] = React.useState<number | null>(null);
-    const [slideProgress, setSlideProgress] = React.useState(0);
-    const SLIDE_DURATION = 7000; // 7 seconds per slide
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const [countdown, setCountdown] = useState<number | null>(null);
+    const [slideProgress, setSlideProgress] = useState(0);
+    const SLIDE_DURATION = 700000; // 7 seconds per slide
     const TOTAL_SLIDES = 6; // Total number of slides
 
-    React.useEffect(() => {
+    useEffect(() => {
         // Only handle countdown logic here, slide progression is handled by progress bar
         if (countdown !== null) {
             if (countdown > 0) {
@@ -42,13 +45,13 @@ const Tutorial: React.FC = () => {
             } else {
                 // Countdown finished, navigate to game
                 setVolumePercentage(80);
-                navigate('/game-2');
+                navigate('../BodyGameMenu');
             }
         }
     }, [countdown, navigate]);
 
     // Slide progress animation
-    React.useEffect(() => {
+    useEffect(() => {
         if (countdown !== null) {
             // Don't show progress bar during countdown
             setSlideProgress(100);
@@ -131,7 +134,7 @@ const Tutorial: React.FC = () => {
 
     const handleSkip = () => {
         setVolumePercentage(80);
-        navigate('/game-2');
+        navigate('../BodyGameMenu');
     };
 
     const handlePrevious = () => {
@@ -152,8 +155,8 @@ const Tutorial: React.FC = () => {
     };
 
     return (
-        <Box minH="100vh" bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
-            <Container maxW="90vw">
+        <Box minH="80vh"  bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
+            <Container maxW="80vw">
                 <Card.Root size="lg" boxShadow="xl">
                     <Card.Body p={{ base: 4, md: 6 }}>
                         {/* Header with Skip Button and Progress */}
@@ -169,12 +172,12 @@ const Tutorial: React.FC = () => {
                                     {currentSlideIndex + 1}/{tutorialSlides.length}
                                 </Text>
                                 
-                               
+                                
                                 
                                 <Button
                                     variant="solid"
                                     colorPalette="red"                               
-                                    size="2xl"
+                                    size="xl"
                                     onClick={handleSkip}
                                 >
                                     <Icon>
@@ -230,9 +233,9 @@ const Tutorial: React.FC = () => {
                                 display="flex" 
                                 justifyContent="center" 
                                 bg="gray.100" 
-                                borderRadius="lg" 
+                                borderRadius="sm" 
                                 p={4}
-                                minH="70vh"
+                                minH="50vh"
                                 alignItems="center"
                                 position="relative"
                             >
@@ -240,7 +243,7 @@ const Tutorial: React.FC = () => {
                                     src={currentSlide.image} 
                                     alt={currentSlide.title}
                                     maxH="70vh"
-                                    maxW="100%"
+                                    maxW="70%"
                                     objectFit="contain"
                                     opacity={countdown !== null ? 0.3 : 1}
                                     transition="opacity 0.3s"

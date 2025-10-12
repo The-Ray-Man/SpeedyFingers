@@ -22,6 +22,8 @@ import { type TwoHandGestureState } from "@/context/GestureService";
 import { ModeColumn } from "@/components/playoptions/ModeColumn";
 
 type GestureIntention = "single" | "multi" | "back" | "conflict" | null;
+import HomeButton from "../components/design/ToHome.tsx";
+import MusicButton from "../components/design/MusicButton.tsx";
 
 const PlayOptions = () => {
   const navigate = useNavigate();
@@ -278,6 +280,7 @@ const PlayOptions = () => {
           )}
         </VStack>
       </Container>
+      <MusicButton></MusicButton>
     </Box>
   );
 };

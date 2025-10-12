@@ -23,7 +23,7 @@ import { Toaster, toaster } from "@/components/ui/toaster";
 import { useUser } from "@/context/UserContext";
 import { useRewardSound } from "../context/rewardSoundContext";
 
-const GAME_DURATION = 60; // 60 seconds
+const GAME_DURATION = 45; // 45 seconds
 const SIMILARITY_THRESHOLD = 0.55; // 55% similarity to accept
 
 const PlayMode: React.FC = () => {
@@ -85,8 +85,8 @@ const PlayMode: React.FC = () => {
         hands.setOptions({
           maxNumHands: 2,
           modelComplexity: 1,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          minDetectionConfidence: 0.3,
+          minTrackingConfidence: 0.3,
         });
 
         hands.onResults(onHandsResults);
@@ -555,10 +555,6 @@ const PlayMode: React.FC = () => {
                         <Text fontSize="lg" fontWeight="bold">
                           Match this symbol
                         </Text>
-                        <Badge colorScheme="purple" borderRadius="full" px={3} py={1}>
-                          {currentDefinition.variants.length} variant
-                          {currentDefinition.variants.length !== 1 ? "s" : ""}
-                        </Badge>
                       </HStack>
                       <Heading size="4xl" textShadow="0 0 18px rgba(255, 255, 255, 0.35)">
                         {currentSymbol}
