@@ -438,13 +438,6 @@ const PlayMode: React.FC = () => {
         try {
           const landmarksArray = results.multiHandLandmarks.map((hand) => landmarksToArray(hand));
           
-          console.log("About to match gesture:", {
-            symbol,
-            definitionExists: !!definition,
-            landmarksArrayLength: landmarksArray.length,
-            variantsCount: definition?.variants?.length
-          });
-          
           // Use local matching instead of backend request
           const matchResponse = matchGestureLocally(landmarksArray, definition);
 
@@ -511,12 +504,6 @@ const PlayMode: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await getRandomGesture();
-      console.log("Loaded new gesture:", {
-        symbol: response.symbol,
-        definitionExists: !!response.definition,
-        variantsCount: response.definition?.variants?.length,
-        threshold: response.definition?.threshold
-      });
       setCurrentSymbol(response.symbol);
       setCurrentDefinition(response.definition);
       setSimilarity(0);

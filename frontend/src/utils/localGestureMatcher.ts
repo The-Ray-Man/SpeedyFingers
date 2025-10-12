@@ -57,15 +57,7 @@ function normalizeLandmarks(landmarks: number[][]): number[][] {
  * Returns similarity score between 0 and 1.
  */
 function compareSingleHand(hand1: number[][], hand2: number[][]): number {
-  console.log("compareSingleHand:", {
-    hand1Length: hand1?.length,
-    hand2Length: hand2?.length,
-    hand1Sample: hand1?.[0],
-    hand2Sample: hand2?.[0]
-  });
-
   if (hand1.length !== hand2.length) {
-    console.log("Hand lengths don't match!");
     return 0.0;
   }
 
@@ -80,18 +72,10 @@ function compareSingleHand(hand1: number[][], hand2: number[][]): number {
 
   const avgDistance = totalDistance / hand1.length;
 
-  console.log("Comparison result:", {
-    totalDistance,
-    avgDistance,
-    numLandmarks: hand1.length
-  });
-
   // Convert distance to similarity (closer = more similar)
   // Use exponential decay: similarity = e^(-k * distance)
   // k=5 gives good sensitivity
   const similarity = Math.exp(-5 * avgDistance);
-
-  console.log("Similarity:", similarity);
 
   return similarity;
 }
@@ -156,15 +140,7 @@ export function matchGestureLocally(
   currentLandmarks: number[][][],
   gestureDefinition: GestureDefinition
 ): LocalMatchResult {
-  console.log("matchGestureLocally called:", {
-    currentLandmarksCount: currentLandmarks?.length,
-    gestureSymbol: gestureDefinition?.symbol,
-    variantsCount: gestureDefinition?.variants?.length,
-    threshold: gestureDefinition?.threshold
-  });
-
   if (!gestureDefinition.variants || gestureDefinition.variants.length === 0) {
-    console.log("No variants found in gesture definition");
     return {
       similarity: 0,
       variantId: "",
@@ -179,14 +155,7 @@ export function matchGestureLocally(
   let bestConfidence = 0;
 
   for (const variant of gestureDefinition.variants) {
-    console.log("Comparing with variant:", {
-      variantId: variant.id,
-      variantLandmarksCount: variant.landmarks?.length,
-      currentLandmarksCount: currentLandmarks?.length
-    });
-    
     const similarity = compareHandPoses(currentLandmarks, variant.landmarks);
-    console.log("Similarity score:", similarity);
     
     // Calculate confidence based on how much better this is than alternatives
     const confidence = similarity;
@@ -197,12 +166,6 @@ export function matchGestureLocally(
       bestConfidence = confidence;
     }
   }
-
-  console.log("Best match:", {
-    bestSimilarity,
-    bestVariantId,
-    threshold: gestureDefinition.threshold || 0.55
-  });
 
   return {
     similarity: bestSimilarity,

@@ -17,8 +17,9 @@ import { Hands, type Results } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { HAND_CONNECTIONS } from "@mediapipe/hands";
-import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, matchGesture, type GestureSummary, type GestureDefinition } from "../gestureApi";
+import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
+import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import MusicButton from "@/components/design/MusicButton";
@@ -53,11 +54,16 @@ const DevMode: React.FC = () => {
   const cameraRef = useRef<Camera | null>(null);
   const currentLandmarksRef = useRef<any>(null);
   const selectedSymbolRef = useRef<string | null>(null);
+  const selectedGestureDetailRef = useRef<GestureDefinition | null>(null);
   const lastMatchTimeRef = useRef<number>(0);
 
   useEffect(() => {
     selectedSymbolRef.current = selectedSymbol;
   }, [selectedSymbol]);
+
+  useEffect(() => {
+    selectedGestureDetailRef.current = selectedGestureDetail;
+  }, [selectedGestureDetail]);
 
   useEffect(() => {
     const initializeHands = async () => {
@@ -176,7 +182,7 @@ const DevMode: React.FC = () => {
         setDebugInfo(info);
       }
       
-      if (selectedSymbolRef.current) {
+      if (selectedSymbolRef.current && selectedGestureDetailRef.current) {
         const now = Date.now();
         const timeSinceLastMatch = now - lastMatchTimeRef.current;
         
@@ -186,10 +192,8 @@ const DevMode: React.FC = () => {
           try {
             const landmarksArray = results.multiHandLandmarks.map((hand) => landmarksToArray(hand));
             
-            const matchResponse = await matchGesture({
-              symbol: selectedSymbolRef.current,
-              landmarks: landmarksArray,
-            });
+            // Use local matching instead of backend request
+            const matchResponse = matchGestureLocally(landmarksArray, selectedGestureDetailRef.current);
             
             setLiveSimilarity(matchResponse.similarity || 0);
           } catch (error) {
