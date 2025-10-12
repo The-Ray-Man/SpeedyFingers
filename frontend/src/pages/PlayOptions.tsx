@@ -196,7 +196,7 @@ const PlayOptions = () => {
     // Same intention -> compute and log progress on this update tick
     if (intention && intention !== "conflict" && startTimeRef.current != null) {
       const elapsed = Date.now() - startTimeRef.current;
-      const progress = Math.min(elapsed / 3100, 1);
+      const progress = Math.min(elapsed / 2500, 1);
       console.log("[PlayOptions] progress:", { intention, progress });
       // Update unified progress regardless of intention
       setHoldProgress(progress);
