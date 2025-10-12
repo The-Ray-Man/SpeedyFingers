@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Home from "@/pages/Home";
 import TutorialFinger from "@/pages/TutorialFinger";
 import TutorialBody from "@/pages/TutorialBody";
@@ -50,7 +50,6 @@ const App = () => (
         
         
         <Routes>
-
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<PlayOptions />} />
           <Route path="/fingerGameMenu" element={<FingerGameMenu />} />
@@ -62,7 +61,7 @@ const App = () => (
           <Route path="/live_game" element={<GameLive />} />
           <Route path="/dev-mode" element={<DevMode />} />
           <Route path="/tutorial" element={<Tutorial />} />
-          <Route path="*" element={<Home />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
    
