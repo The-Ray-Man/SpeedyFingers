@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import {
   Box,
-  Button,
   Container,
   Heading,
   Text,
@@ -21,7 +20,8 @@ import { useGesture } from "@/context/GestureContext";
 import { type TwoHandGestureState } from "@/context/GestureService";
 import { ModeColumn } from "@/components/playoptions/ModeColumn";
 
-type GestureIntention = "single" | "multi" | "back" | "conflict" | null;
+import { useMusic } from "@/context/MusicContext";
+type GestureIntention = "single" | "multi" | "back" | "music" | "conflict" | null;
 import HomeButton from "../components/design/ToHome.tsx";
 import MusicButton from "../components/design/MusicButton.tsx";
 
@@ -33,11 +33,14 @@ const PlayOptions = () => {
   const [error, setError] = useState<string | null>(null);
   const { gesture, setGestureEnabled } = useGesture();
   const [currentIntention, setCurrentIntention] = useState<GestureIntention>(null);
+  const { toggle } = useMusic();
   const startTimeRef = useRef<number | null>(null);
   // Visual progress for each mode button (0..1)
   const [singleHoldProgress, setSingleHoldProgress] = useState(0);
   const [multiHoldProgress, setMultiHoldProgress] = useState(0);
+  const [backHoldProgress, setBackHoldProgress] = useState(0);
 
+  const [musicHoldProgress, setMusicHoldProgress] = useState(0);
   // Enable gesture tracking on mount
   useEffect(() => {
     setGestureEnabled(true);
@@ -102,9 +105,11 @@ const PlayOptions = () => {
       const isNeutral = (hand: typeof firstHand) =>
         !hand ||
         (hand.type === "FINGERS_UP" && hand.count !== 1 && hand.count !== 2) ||
-        hand.type === "ILOVEYOU" ||
         hand.type === "THUMBS_UP" ||
         hand.type === "HEART";
+
+          // Helper to check I LOVE YOU gesture
+          const isILoveYou = (hand: typeof firstHand) => hand?.type === "ILOVEYOU";
 
       // Both hands with same intention
       if (firstHand && secondHand) {
@@ -114,6 +119,8 @@ const PlayOptions = () => {
         if (isTwoFingers(firstHand) && isTwoFingers(secondHand)) return "multi";
         // Both thumbs down -> back
         if (isThumbsDown(firstHand) && isThumbsDown(secondHand)) return "back";
+        // Both ILY -> music
+        if (isILoveYou(firstHand) && isILoveYou(secondHand)) return "music";
         // One finger on one hand, neutral on other -> single
         if (
           (isOneFinger(firstHand) && isNeutral(secondHand)) ||
@@ -132,6 +139,12 @@ const PlayOptions = () => {
           (isNeutral(firstHand) && isThumbsDown(secondHand))
         )
           return "back";
+        // ILY on one hand, neutral on other -> music
+        if (
+          (isILoveYou(firstHand) && isNeutral(secondHand)) ||
+          (isNeutral(firstHand) && isILoveYou(secondHand))
+        )
+          return "music";
         // Conflicting gestures
         return "conflict";
       }
@@ -140,6 +153,7 @@ const PlayOptions = () => {
       if (isOneFinger(firstHand) || isOneFinger(secondHand)) return "single";
       if (isTwoFingers(firstHand) || isTwoFingers(secondHand)) return null; // Need two hands for multi
       if (isThumbsDown(firstHand) || isThumbsDown(secondHand)) return "back";
+      if (isILoveYou(firstHand) || isILoveYou(secondHand)) return "music";
       return null;
     };
   }, []);
@@ -155,6 +169,7 @@ const PlayOptions = () => {
       // Reset visual progress on intention switch
       setSingleHoldProgress(0);
       setMultiHoldProgress(0);
+      setBackHoldProgress(0);
       if (intention) {
         console.log("[PlayOptions] intention:", intention);
       }
@@ -170,52 +185,117 @@ const PlayOptions = () => {
       if (intention === "single") {
         setSingleHoldProgress(progress);
         if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+        if (backHoldProgress !== 0) setBackHoldProgress(0);
+        if (musicHoldProgress !== 0) setMusicHoldProgress(0);
       } else if (intention === "multi") {
         setMultiHoldProgress(progress);
         if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+        if (backHoldProgress !== 0) setBackHoldProgress(0);
+        if (musicHoldProgress !== 0) setMusicHoldProgress(0);
+      } else if (intention === "music") {
+        setMusicHoldProgress(progress);
+        if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+        if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+        if (backHoldProgress !== 0) setBackHoldProgress(0);
       } else {
         // back or others -> clear both
         if (singleHoldProgress !== 0) setSingleHoldProgress(0);
         if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+        if (intention === "back") {
+          setBackHoldProgress(progress);
+        } else if (backHoldProgress !== 0) {
+          setBackHoldProgress(0);
+        }
+        if (musicHoldProgress !== 0) setMusicHoldProgress(0);
       }
       if (progress >= 1) {
         if (intention === "single") navigate("/game-1");
         else if (intention === "multi") navigate("/live_game");
         else if (intention === "back") navigate("/");
+        else if (intention === "music") toggle();
         startTimeRef.current = null;
         // Clear visual progress after navigation trigger
         setSingleHoldProgress(0);
         setMultiHoldProgress(0);
+        setBackHoldProgress(0);
+        setMusicHoldProgress(0);
       }
     }
-  }, [gesture, navigate ]);
+  }, [gesture, navigate]);
 
   return (
+    <>
+    <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+      <Text
+        position="absolute"
+        right="calc(100% + 0.5rem)"
+        bottom="0.5rem"
+        fontSize="sm"
+        fontWeight="bold"
+        color="gray.700"
+        _dark={{ color: "gray.200" }}
+        transform="rotate(-6deg)"
+        letterSpacing="0.02em"
+      >
+        Show <Box as="span" aria-label="i love you" role="img">🤟</Box> to toggle <Box as="span">{"->"}</Box>
+      </Text>
+      <div style={{ position: "relative", display: "inline-block", borderRadius: 9999, overflow: "hidden" }}>
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <MusicButton />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            height: "100%",
+            width: `${Math.max(0, Math.min(1, musicHoldProgress)) * 100}%`,
+            background:
+              "linear-gradient(90deg, rgba(110,90,255,0.35) 0%, rgba(155,107,255,0.35) 50%, rgba(36,183,255,0.35) 100%)",
+            transition: "width 0.24s cubic-bezier(0.22,1,0.36,1)",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        />
+      </div>
+    </div>
+    <Box position="fixed" top={4} left={4} zIndex={10}>
+      <HStack gap={3} align="center">
+        <HomeButton holdProgress={backHoldProgress} />
+        <Text transform="rotate(-8deg)
+        translate(0em, -1.2em)"
+          fontSize="sm"
+          fontWeight="bold"
+          color="gray.700"
+          _dark={{ color: "gray.200" }}
+          display="flex"
+          alignItems="center"
+          gap={1.5}
+          letterSpacing="0.02em"
+        >
+          <Box as="span" display="inline-block"  transformOrigin="left center">{"<-"}</Box>
+          Show <Box as="span" aria-label="thumbs down" role="img">👎</Box> to press
+        </Text>
+      </HStack>
+    </Box>
     <Box
       h="100vh"
       bg="gray.50"
       _dark={{ bg: "rgba(18, 22, 32, 0.75)" }}
       py={{ base: 10, md: 16 }}
     >
+      
       <Container maxW="7xl">
         <VStack gap={{ base: 10, md: 12 }} align="stretch">
-          <Button
-            variant="outline"
-            alignSelf="flex-start"
-            size="sm"
-            onClick={() => navigate("/")}
-          >
-            ← Back to Home
-          </Button>
-          <HStack gap="7em" align="center" justify="center">
-            <Heading size="5xl"><Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game {"->"}</Text>✌️</Heading>
+          <HStack gap="7em" align="end" justify="center">
+            <Heading size="5xl"><Text fontSize={"md"} position="absolute" transform="translate(-9.5em, -1em) rotate(8deg)">Show to select game{"->"}</Text>✌️+✌️</Heading>
             <VStack gap={3} textAlign="center">
               <Heading size="5xl">Choose Your Game Mode</Heading>
               <Text maxW="xl" color="gray.600" _dark={{ color: "gray.300" }}>
                 Battle friends in real-time or show off your skills at mimicing more advanced shapes, emojis and even LaTeX shapes.
               </Text>
             </VStack>
-            <Heading size="5xl">☝️<Text fontSize={"md"} position="absolute" transform="translate(3em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
+            <Heading size="5xl" >☝️<Text fontSize={"md"} position="absolute" transform="translate(3.5em, -5em) rotate(-16deg)">{"<-"} Show to select game </Text></Heading>
           </HStack>
           {/* Visual feedback temporarily removed – logging progress to console only */}
           {loading ? (
@@ -246,6 +326,10 @@ const PlayOptions = () => {
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
                   holdProgress={multiHoldProgress}
+                  tutorialButton={{
+                    label: "📚 Tutorial",
+                    onClick: () => navigate("/tutorial")
+                  }}
                 />
                 <ModeColumn
                   title="Single Player Challenge"
@@ -262,8 +346,9 @@ const PlayOptions = () => {
           )}
         </VStack>
       </Container>
-      <MusicButton></MusicButton>
+      
     </Box>
+    </>
   );
 };
 

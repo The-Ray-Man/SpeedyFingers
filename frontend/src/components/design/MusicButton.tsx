@@ -14,9 +14,6 @@ const MusicButton: React.FC<MusicButtonProps> = ({ selectMusicBtn = false }) => 
 
   return (
     <Button
-      position="absolute"
-      bottom={4}
-      right={4}
       zIndex={1000}
       variant={isPlaying ? "solid" : "outline"}
       size="lg"

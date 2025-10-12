@@ -21,6 +21,7 @@ import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, 
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
+import MusicButton from "@/components/design/MusicButton";
 
 // ⚙️ ADMIN MODE CONFIGURATION
 // Predefined admin password - change this to your desired code
@@ -556,6 +557,9 @@ const DevMode: React.FC = () => {
 
   return (
     <Container maxW="container.xl" py={8} bg="rgba(15, 18, 36, 0.95)">
+      <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
       <Toaster />
       <VStack gap={10} align="stretch">
         <Box position="relative">
