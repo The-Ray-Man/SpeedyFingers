@@ -32,11 +32,10 @@ const Home = () => {
           {/* Header Section */}
           <Box textAlign="center">
             <Heading size="6xl" fontWeight="extrabold" lineHeight="1.1" mb={4}>
-              VIS Camera Games
+              Speedy Fingers
             </Heading>
             <Text fontSize="lg" color="gray.700" _dark={{ color: "gray.200" }} maxW="3xl" mx="auto">
-              Train your reflexes, challenge your accuracy, and explore cooperative gesture recognition.
-              Jump into the latest interactive experiences crafted for teams and creators.
+              Train your reflexes, challenge your accuracy, and explore competitive gesture games.
             </Text>
           </Box>
 
@@ -97,7 +96,7 @@ const Home = () => {
                     Play Mode
                   </Heading>
                   <Text fontSize="md" color="gray.700" _dark={{ color: "gray.200" }} textAlign="center">
-                    Jump into exciting gesture-based games. Challenge yourself, compete with friends, and master hand gestures in various game modes.
+                    Jump into exciting gesture-based games. Compete with a friend in a competitive and chaotic 1 vs. 1 game.
                   </Text>
                   <Button
                     size="lg"
