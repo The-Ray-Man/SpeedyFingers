@@ -24,7 +24,7 @@ type Listener = (state: TwoHandGestureState | null) => void;
 
 export class GestureService {
     private lastDetectionTime = 0;
-private detectionInterval = 200; // run every 200ms (~5 times/sec)
+private detectionInterval = 400; // run every 200ms (~5 times/sec)
   private handLandmarker: HandLandmarker | null = null;
   public videoElement: HTMLVideoElement | null = null;
   private running = false;

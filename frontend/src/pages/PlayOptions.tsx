@@ -32,9 +32,9 @@ const PlayOptions = () => {
   const { gesture, setGestureEnabled } = useGesture();
   const [currentIntention, setCurrentIntention] = useState<GestureIntention>(null);
   const startTimeRef = useRef<number | null>(null);
-  const [singleProgress, setSingleProgress] = useState(0);
-  const [multiProgress, setMultiProgress] = useState(0);
-  const [backProgress, setBackProgress] = useState(0);
+  // Visual progress for each mode button (0..1)
+  const [singleHoldProgress, setSingleHoldProgress] = useState(0);
+  const [multiHoldProgress, setMultiHoldProgress] = useState(0);
 
   // Enable gesture tracking on mount
   useEffect(() => {
@@ -150,10 +150,9 @@ const PlayOptions = () => {
     if (intention !== currentIntention) {
       setCurrentIntention(intention);
       startTimeRef.current = intention && intention !== "conflict" ? Date.now() : null;
-      // reset progress visuals
-      setSingleProgress(0);
-      setMultiProgress(0);
-      setBackProgress(0);
+      // Reset visual progress on intention switch
+      setSingleHoldProgress(0);
+      setMultiHoldProgress(0);
       if (intention) {
         console.log("[PlayOptions] intention:", intention);
       }
@@ -165,20 +164,29 @@ const PlayOptions = () => {
       const elapsed = Date.now() - startTimeRef.current;
       const progress = Math.min(elapsed / 4000, 1);
       console.log("[PlayOptions] progress:", { intention, progress });
-      if (intention === "single") setSingleProgress(progress);
-      if (intention === "multi") setMultiProgress(progress);
-      if (intention === "back") setBackProgress(progress);
+      // Update per-mode visual progress
+      if (intention === "single") {
+        setSingleHoldProgress(progress);
+        if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+      } else if (intention === "multi") {
+        setMultiHoldProgress(progress);
+        if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+      } else {
+        // back or others -> clear both
+        if (singleHoldProgress !== 0) setSingleHoldProgress(0);
+        if (multiHoldProgress !== 0) setMultiHoldProgress(0);
+      }
       if (progress >= 1) {
         if (intention === "single") navigate("/game-1");
         else if (intention === "multi") navigate("/live_game");
         else if (intention === "back") navigate("/");
         startTimeRef.current = null;
-        setSingleProgress(0);
-        setMultiProgress(0);
-        setBackProgress(0);
+        // Clear visual progress after navigation trigger
+        setSingleHoldProgress(0);
+        setMultiHoldProgress(0);
       }
     }
-  }, [gesture, navigate, currentIntention, interpretIntention]);
+  }, [gesture, navigate ]);
 
   return (
     <Box
@@ -194,22 +202,8 @@ const PlayOptions = () => {
             alignSelf="flex-start"
             size="sm"
             onClick={() => navigate("/")}
-            position="relative"
-            overflow="hidden"
           >
-            {/* Back button progress overlay */}
-            <Box
-              position="absolute"
-              left={0}
-              top={0}
-              bottom={0}
-              width={`${backProgress * 100}%`}
-              bgGradient="linear(to-r, blackAlpha.200, blackAlpha.400)"
-              transition="width 160ms ease-out"
-              pointerEvents="none"
-              zIndex={1}
-            />
-            <Box position="relative" zIndex={2}>← Back to Home</Box>
+            ← Back to Home
           </Button>
           <HStack gap="7em" align="center" justify="center">
             <Heading size="5xl">
@@ -267,7 +261,7 @@ const PlayOptions = () => {
                   onClick={() => navigate("/live_game")}
                   entries={liveGameBoard}
                   emptyMessage="No teams on the board yet. Be the first dynamic duo!"
-                  holdProgress={multiProgress}
+                  holdProgress={multiHoldProgress}
                 />
                 <ModeColumn
                   title="Single Player Challenge"
@@ -276,7 +270,8 @@ const PlayOptions = () => {
                   onClick={() => navigate("/game-1")}
                   entries={singlePlayerBoard}
                   emptyMessage="No solo scores yet. Set the benchmark!"
-                  holdProgress={singleProgress}
+                  holdProgress={singleHoldProgress}
+                  
                 />
               </SimpleGrid>
             </>

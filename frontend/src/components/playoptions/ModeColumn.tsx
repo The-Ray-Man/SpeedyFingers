@@ -23,42 +23,62 @@ export const ModeColumn = ({
   emptyMessage,
   highlight = false,
   holdProgress = 0,
-  borderProgress = 0,
 }: ModeColumnProps) => {
   return (
     <Box
       position="relative"
+      >
+
+      
+    <Box
+      position="absolute"
+      bg="black"
+      h={`${holdProgress * 100}%`}
+      w={`${holdProgress * 100}%`}
+      top="-2"
+      left="-2"
+        borderRadius="2xl"
+        zIndex={0}
+        pointerEvents="none"
+        style={{
+        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1)",
+      }}
+      ></Box>
+      <Box
+      position="absolute"
+      bg="black"
+      h={`${holdProgress * 100}%`}
+      w={`${holdProgress * 100}%`}
+      bottom="-2"
+      right="-2"
+        borderRadius="2xl"
+        zIndex={0}
+        pointerEvents="none"
+        style={{
+        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1)",
+      }}
+      ></Box>
+      <Box
+      position="relative"
+      zIndex={10}
       borderRadius="2xl"
-      boxShadow={highlight ? "0 24px 60px rgba(56, 54, 108, 0.55)" : "xl"}
-      bg={highlight ? "linear-gradient(140deg, rgba(110, 85, 255, 0.35), rgba(30, 180, 255, 0.2))" : "white"}
+      boxShadow={highlight ? "0 20px 50px rgba(56, 54, 108, 0.35)" : "xl"}
+      // Make highlight gradient opaque so nothing shows through
+      bg={highlight ? "linear-gradient(140deg, #6E5AFF 0%, #24B7FF 100%)" : "white"}
       _dark={{
         bg: highlight
-          ? "linear-gradient(140deg, rgba(120, 95, 255, 0.35), rgba(40, 200, 255, 0.2))"
-          : "rgba(20, 24, 36, 0.75)"
+          ? "linear-gradient(140deg, #7A62FF 0%, #30D0FF 100%)"
+          : "rgba(20, 24, 36, 0.92)"
       }}
-      border={highlight ? "1px solid rgba(140, 200, 255, 0.35)" : "1px solid rgba(255, 255, 255, 0.08)"}
+      border={highlight ? "1px solid rgba(140, 200, 255, 0.55)" : "1px solid rgba(255, 255, 255, 0.08)"}
       p={{ base: 6, md: 8 }}
       display="flex"
       flexDirection="column"
       gap={6}
       overflow="hidden"
     >
-      {/* Border growth animation */}
-      {borderProgress > 0 && (
-        <Box
-          position="absolute"
-          bottom="0"
-          left="0"
-          right="0"
-          height={`${borderProgress * 100}%`}
-          border="3px solid"
-          borderColor={highlight ? "purple.400" : "blue.400"}
-          borderRadius="2xl"
-          pointerEvents="none"
-          transition="height 0.1s linear"
-          zIndex={0}
-        />
-      )}
+    
+      
 
       <VStack align="flex-start" gap={3} position="relative" zIndex={1}>
         <Heading size="lg">{title}</Heading>
@@ -66,27 +86,39 @@ export const ModeColumn = ({
           {description}
         </Text>
         <Box position="relative" overflow="hidden" borderRadius="md">
-          {/* Button fill animation */}
-          {holdProgress > 0 && (
-            <Box
-              position="absolute"
-              left="0"
-              top="0"
-              bottom="0"
-              width={`${holdProgress * 100}%`}
-              bg={highlight ? "purple.600" : "blue.600"}
-              opacity={0.5}
-              transition="width 0.1s linear"
-              zIndex={0}
-            />
-          )}
-          <Button 
-            colorScheme={highlight ? "purple" : "blue"} 
-            size="lg" 
-            onClick={onClick} 
+          {/* Smooth, opaque gradient fill that sits behind the button */}
+          <Box
+            position="absolute"
+            left={0}
+            top={0}
+            bottom={0}
+            width={`${Math.max(0, Math.min(1, holdProgress)) * 100}%`}
+            bg={
+              highlight
+                ? "linear-gradient(90deg, #5E4BFF 0%, #25D0FF 100%)"
+                : "linear-gradient(90deg, #4F8CFF 0%, #34D1BF 100%)"
+            }
+            transition="width 0.24s cubic-bezier(0.22,1,0.36,1)"
+            willChange="width"
+            pointerEvents="none"
+            zIndex={0}
+          />
+          <Button
+            size="lg"
+            onClick={onClick}
             alignSelf="flex-start"
             position="relative"
             zIndex={1}
+            bg="transparent"
+            borderWidth="2px"
+            borderColor={highlight ? "rgba(210, 230, 255, 0.8)" : "rgba(40, 60, 120, 0.35)"}
+            color={highlight ? "white" : "black"}
+            _hover={{ bg: "rgba(255,255,255,0.06)" }}
+            _dark={{
+              borderColor: highlight ? "rgba(230, 245, 255, 0.9)" : "rgba(255,255,255,0.28)",
+              color: "white",
+              _hover: { bg: "rgba(255,255,255,0.08)" }
+            }}
           >
             {ctaLabel}
           </Button>
@@ -97,8 +129,8 @@ export const ModeColumn = ({
         mt={2}
         borderRadius="xl"
         border="1px solid rgba(255, 255, 255, 0.12)"
-        bg={highlight ? "rgba(15, 20, 38, 0.45)" : "rgba(240, 242, 255, 0.65)"}
-        _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.55)" : "rgba(25, 30, 48, 0.65)" }}
+        bg={highlight ? "rgba(15, 20, 38, 0.70)" : "rgba(240, 242, 255, 0.85)"}
+        _dark={{ bg: highlight ? "rgba(12, 16, 28, 0.75)" : "rgba(25, 30, 48, 0.75)" }}
         px={{ base: 4, md: 5 }}
         py={{ base: 4, md: 5 }}
         position="relative"
@@ -115,6 +147,7 @@ export const ModeColumn = ({
         </Heading>
         <LeaderboardList entries={entries} emptyMessage={emptyMessage} highlight={highlight} />
       </Box>
+    </Box>
     </Box>
   );
 };
