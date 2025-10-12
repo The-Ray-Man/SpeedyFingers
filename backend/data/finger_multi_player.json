@@ -12,15 +12,15 @@
     "timestamp": "2025-10-12T06:14:43.691499"
   },
   {
+    "name": "Player 1",
+    "score": 59,
+    "symbols": 9,
+    "timestamp": "2025-10-12T06:43:10.860897"
+  },
+  {
     "name": "Tom",
     "score": 23,
     "symbols": 11,
     "timestamp": "2025-10-12T02:19:41.460543"
-  },
-  {
-    "name": "Player 1",
-    "score": 0,
-    "symbols": 0,
-    "timestamp": "2025-10-12T02:52:32.247818"
   }
 ]

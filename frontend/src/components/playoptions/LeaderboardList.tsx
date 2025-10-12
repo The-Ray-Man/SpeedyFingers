@@ -18,7 +18,7 @@ export const LeaderboardList = ({ entries, emptyMessage, highlight = false }: Le
 
   return (
     <Stack gap={3}>
-      {entries.slice(0, 8).map(entry => (
+      {entries.slice(0, 3).map(entry => (
         <Flex
           key={`${entry.rank}-${entry.name ?? entry.team ?? entry.score}`}
           justify="space-between"
