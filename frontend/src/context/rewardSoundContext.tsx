@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
+type SoundType = 'gesture_match' | 'collectPoint' | 'playerTwo';
+
 interface RewardSoundContextType {
   volume: number;
-  playSound: () => void;
+  playSound: (soundType?: SoundType) => void;
   setVolume: (volume: number) => void;
 }
 
@@ -11,20 +13,25 @@ const RewardSoundContext = createContext<RewardSoundContextType | undefined>(und
 
 interface RewardSoundProviderProps {
   children: ReactNode;
-  soundPath?: string;
   defaultVolume?: number;
 }
 
+const SOUND_PATHS: Record<SoundType, string> = {
+  gesture_match: '/sounds/gesture_match.mp3',
+  collectPoint: '/sounds/collectPoint.mp3',
+  playerTwo: '/sounds/playerTwo.mp3',
+ 
+};
+
 export const RewardSoundProvider: React.FC<RewardSoundProviderProps> = ({ 
-  children, 
-  soundPath = '/sounds/gesture_match.mp3',
+  children,
   defaultVolume = 0.5 
 }) => {
   const [volume, setVolumeState] = useState(defaultVolume);
 
-  const playSound = () => {
+  const playSound = (soundType: SoundType = 'gesture_match') => {
     // Create a new Audio instance each time to allow overlapping sounds
-    const audio = new Audio(soundPath);
+    const audio = new Audio(SOUND_PATHS[soundType]);
     audio.volume = volume;
     
     audio.play().catch((error) => {

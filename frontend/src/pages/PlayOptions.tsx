@@ -17,6 +17,8 @@ import {
   getGameMultiPlayerLeaderboard,
   type LeaderboardEntry
 } from "@/leaderboardApi";
+import HomeButton from "../components/design/ToHome.tsx";
+import MusicButton from "../components/design/MusicButton.tsx";
 
 const PlayOptions = () => {
   const navigate = useNavigate();
@@ -65,14 +67,7 @@ const PlayOptions = () => {
     >
       <Container maxW="7xl">
         <VStack gap={{ base: 10, md: 12 }} align="stretch">
-          <Button
-            variant="outline"
-            alignSelf="flex-start"
-            size="sm"
-            onClick={() => navigate("/")}
-          >
-            ← Back to Home
-          </Button>
+          <HomeButton/>
           <VStack gap={3} textAlign="center">
             <Heading size="2xl">Choose Your Game Mode</Heading>
             <Text maxW="3xl" color="gray.600" _dark={{ color: "gray.300" }}>
@@ -123,6 +118,7 @@ const PlayOptions = () => {
           )}
         </VStack>
       </Container>
+      <MusicButton></MusicButton>
     </Box>
   );
 };

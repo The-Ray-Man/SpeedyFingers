@@ -32,7 +32,7 @@ const BodyGameMenu = () => {
 
   <Button 
     size="2xl" 
-    onClick={() => navigate('/TutorialFinger')}
+    onClick={() => navigate('/TutorialBody')}
     colorPalette="purple"
     variant="solid"
     px={8}
