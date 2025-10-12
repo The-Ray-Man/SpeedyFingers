@@ -30,32 +30,32 @@ const FooterBar: React.FC = () => {
             return;
         }
 
-        const left = gesture.left;
-        const right = gesture.right;
+        const firstHand = gesture.firstHand;
+        const secondHand = gesture.secondHand;
 
-        const isThumbsUp = (g: typeof left) => !!g && g.type === "THUMBS_UP";
-        const isILoveYou = (g: typeof left) => !!g && g.type === "ILOVEYOU";
+        const isThumbsUp = (g: typeof firstHand) => !!g && g.type === "THUMBS_UP";
+        const isILoveYou = (g: typeof firstHand) => !!g && g.type === "ILOVEYOU";
 
         // Iterate both hands for selection visuals
         // New mapping: ILY -> Music (pause/play), THUMBS_UP -> Keyboard (gesture)
-        if (left) {
-            if (isILoveYou(left)) gestureSelected = true; // ILY selects music
-            if (isThumbsUp(left)) musicSelected = true; // thumbs up selects gesture
+        if (firstHand) {
+            if (isILoveYou(firstHand)) gestureSelected = true; // ILY selects music
+            if (isThumbsUp(firstHand)) musicSelected = true; // thumbs up selects gesture
         }
-        if (right) {
-            if (isILoveYou(right)) gestureSelected = true; // ILY selects music regardless of side
-            if (isThumbsUp(right)) musicSelected = true; // thumbs up selects gesture regardless of side
+        if (secondHand) {
+            if (isILoveYou(secondHand)) gestureSelected = true; // ILY selects music
+            if (isThumbsUp(secondHand)) musicSelected = true; // thumbs up selects gesture
         }
 
         setSelectGestureBtn(gestureSelected);
         setSelectMusicBtn(musicSelected);
 
         // Confirmation: only act if both hands show SAME gesture type and confirm is true
-        const leftType = left && (left as any)?.type;
-        const rightType = right && (right as any)?.type;
-        const sameType = !!leftType && !!rightType && leftType === rightType;
+        const firstType = firstHand && (firstHand as any)?.type;
+        const secondType = secondHand && (secondHand as any)?.type;
+        const sameType = !!firstType && !!secondType && firstType === secondType;
 
-        if (gesture.confirm && sameType && (leftType === "THUMBS_UP" || leftType === "ILOVEYOU")) {
+        if (gesture.confirm && sameType && (firstType === "THUMBS_UP" || firstType === "ILOVEYOU")) {
             const now = Date.now();
             if (now - lastConfirmRef.current < CONFIRM_COOLDOWN_MS) return;
             lastConfirmRef.current = now;
