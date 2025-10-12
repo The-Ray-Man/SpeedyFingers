@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitScore } from "@/leaderboardApi";
 import { useRewardSound } from "../../context/rewardSoundContext";
+import MusicButton from "../design/MusicButton";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
@@ -468,16 +469,6 @@ type PostGameState = {
   error?: string;
 };
 
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (element: HTMLElement | string, options: Record<string, unknown>) => any;
-      PlayerState: Record<string, number>;
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
 const GameLive = () => {
   const { playSound } = useRewardSound();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -856,7 +847,6 @@ const GameLive = () => {
     const COIN_MAX_INTERVAL_MS = 2400;
     const COIN_LIFETIME_MS = 3000;
     const COIN_BLINK_MS = 1500;
-    const YOUTUBE_VIDEO_ID = "XnygT6ANLzQ";
 
     const playerTargets: Record<
       number,
@@ -901,66 +891,6 @@ const GameLive = () => {
       return mod;
     });
 
-    const existingYoutubeScript = document.querySelector<HTMLScriptElement>(
-      'script[src="https://www.youtube.com/iframe_api"]'
-    );
-    let ytScriptTag = existingYoutubeScript;
-    let addedYoutubeScript = false;
-    const previousYoutubeReady = window.onYouTubeIframeAPIReady;
-
-    const createYoutubePlayer = () => {
-      if (ytPlayer || !window.YT || !ytPlayerContainerRef.current) {
-        return;
-      }
-
-      ytPlayer = new window.YT.Player(ytPlayerContainerRef.current, {
-        height: "0",
-        width: "0",
-        videoId: YOUTUBE_VIDEO_ID,
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          modestBranding: 1,
-          rel: 0,
-          playsinline: 1
-        },
-        events: {
-          onReady: () => {
-            ytReady = true;
-            if (ytPlayer?.setVolume) {
-              ytPlayer.setVolume(55);
-            }
-            while (pendingAudioActions.length) {
-              const action = pendingAudioActions.shift();
-              if (action) {
-                action();
-              }
-            }
-          },
-          onStateChange: (event: { data: number }) => {
-            if (window.YT && event.data === window.YT.PlayerState?.ENDED) {
-              playBackgroundAudio();
-            }
-          }
-        }
-      });
-    };
-
-    if (!ytScriptTag) {
-      ytScriptTag = document.createElement("script");
-      ytScriptTag.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(ytScriptTag);
-      addedYoutubeScript = true;
-    }
-
-    if (window.YT && window.YT.Player) {
-      createYoutubePlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = () => {
-        previousYoutubeReady?.();
-        createYoutubePlayer();
-      };
-    }
 
     if (resetButton) {
       resetButton.addEventListener("click", handleResetClick);
@@ -2131,23 +2061,15 @@ const GameLive = () => {
         stream.getTracks().forEach(track => track.stop());
       }
       stopBackgroundAudio();
-      if (ytPlayer?.destroy) {
-        ytPlayer.destroy();
-      }
-      if (addedYoutubeScript && ytScriptTag?.parentNode) {
-        ytScriptTag.parentNode.removeChild(ytScriptTag);
-      }
-      if (previousYoutubeReady) {
-        window.onYouTubeIframeAPIReady = previousYoutubeReady;
-      } else {
-        delete window.onYouTubeIframeAPIReady;
-      }
     };
   }, []);
 
   return (
     <div className="game-live-page">
       <main>
+        <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
+          <MusicButton />
+        </div>
         <div className="top-bar">
           <div className="timebar">
             <div className="timebar-fill" ref={timebarFillRef} />
@@ -2278,10 +2200,6 @@ const GameLive = () => {
 
         <div className="status-line" ref={statusMessageRef}>
           Press Start or show 👍👍 to begin.
-        </div>
-
-        <div className="hidden-audio">
-          <div ref={ytPlayerContainerRef} />
         </div>
       </main>
     </div>
