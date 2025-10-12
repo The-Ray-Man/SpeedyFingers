@@ -15,6 +15,7 @@ import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
 import { useEffect, useState } from "react";
 import MusicButton from "@/components/design/MusicButton";
+import { LightMode } from '@/components/ui/color-mode';
 
 interface TutorialSlide {
     title: string;
@@ -155,6 +156,7 @@ const Tutorial: React.FC = () => {
 
     return (
         <>
+        <LightMode>
         <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
           <MusicButton />
         </div>
@@ -304,6 +306,7 @@ const Tutorial: React.FC = () => {
                 </Card.Root>
             </Container>
         </Box>
+        </LightMode>
         </>
     );
 };

@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
 import { useEffect, useState } from "react";
+import { LightMode } from '@/components/ui/color-mode';
 
 interface TutorialSlide {
     title: string;
@@ -155,6 +156,7 @@ const Tutorial: React.FC = () => {
     };
 
     return (
+        <LightMode>
         <Box minH="80vh"  bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
             <Container maxW="80vw">
                 <Card.Root size="lg" boxShadow="xl">
@@ -301,6 +303,7 @@ const Tutorial: React.FC = () => {
                 </Card.Root>
             </Container>
         </Box>
+        </LightMode>
     );
 };
 
