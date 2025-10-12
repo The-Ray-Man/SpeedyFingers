@@ -1031,7 +1031,7 @@ const PlayMode: React.FC = () => {
               size="lg"
               variant="outline"
               colorScheme="purple"
-              onClick={() => navigate("/game-1")}
+              onClick={() => navigate('/play')}
               maxW="480px"
               mx="auto"
               w="full"
