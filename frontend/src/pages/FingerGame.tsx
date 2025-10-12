@@ -555,10 +555,6 @@ const PlayMode: React.FC = () => {
                         <Text fontSize="lg" fontWeight="bold">
                           Match this symbol
                         </Text>
-                        <Badge colorScheme="purple" borderRadius="full" px={3} py={1}>
-                          {currentDefinition.variants.length} variant
-                          {currentDefinition.variants.length !== 1 ? "s" : ""}
-                        </Badge>
                       </HStack>
                       <Heading size="4xl" textShadow="0 0 18px rgba(255, 255, 255, 0.35)">
                         {currentSymbol}
