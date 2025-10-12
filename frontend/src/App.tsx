@@ -12,7 +12,7 @@ import DevMode from "./pages/DevMode";
 import { GestureProvider } from "./context/GestureContext";
 import GameLive from "@/components/pages/GameLive";
 import PlayOptions from "@/pages/PlayOptions";
-import MusicButton from "./components/design/MusicButton.tsx";
+import Tutorial from "./pages/Tutorial.tsx";
 {/* 
 
 
@@ -61,6 +61,7 @@ const App = () => (
           <Route path="/game-2" element={<BodyGame />} />
           <Route path="/live_game" element={<GameLive />} />
           <Route path="/dev-mode" element={<DevMode />} />
+          <Route path="/tutorial" element={<Tutorial />} />
         </Routes>
       </Router>
    

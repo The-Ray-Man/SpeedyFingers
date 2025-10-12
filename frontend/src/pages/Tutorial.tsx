@@ -14,7 +14,6 @@ import { useNavigate } from 'react-router-dom';
 import { FiSkipForward, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useMusic } from '../context/MusicContext';
 import { useEffect, useState } from "react";
-import MusicButton from "@/components/design/MusicButton";
 
 interface TutorialSlide {
     title: string;
@@ -28,35 +27,13 @@ const Tutorial: React.FC = () => {
 
     const { setVolumePercentage } = useMusic();
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-    const [countdown, setCountdown] = useState<number | null>(null);
     const [slideProgress, setSlideProgress] = useState(0);
-    const SLIDE_DURATION = 700000; // 7 seconds per slide
-    const TOTAL_SLIDES = 6; // Total number of slides
-
-    useEffect(() => {
-        // Only handle countdown logic here, slide progression is handled by progress bar
-        if (countdown !== null) {
-            if (countdown > 0) {
-                const timer = setTimeout(() => {
-                    setCountdown(countdown - 1);
-                }, 1000);
-                return () => clearTimeout(timer);
-            } else {
-                // Countdown finished, navigate to game
-                setVolumePercentage(80);
-                navigate('../FingerGameMenu');
-            }
-        }
-    }, [countdown, navigate]);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const SLIDE_DURATION = 7000; // 7 seconds per slide
+    const TOTAL_SLIDES = 4; // Total number of slides
 
     // Slide progress animation
     useEffect(() => {
-        if (countdown !== null) {
-            // Don't show progress bar during countdown
-            setSlideProgress(100);
-            return;
-        }
-
         setSlideProgress(0);
         let hasAdvanced = false; // Flag to prevent multiple advances
         
@@ -70,13 +47,16 @@ const Tutorial: React.FC = () => {
                     hasAdvanced = true;
                     
                     if (currentSlideIndex < TOTAL_SLIDES - 1) {
+                        setIsTransitioning(true);
                         setTimeout(() => {
                             setCurrentSlideIndex(prevIndex => prevIndex + 1);
-                        }, 50);
+                            setIsTransitioning(false);
+                        }, 300);
                     } else if (currentSlideIndex === TOTAL_SLIDES - 1) {
-                        // Start countdown on last slide when progress completes
+                        // Navigate directly to game on last slide
                         setTimeout(() => {
-                            setCountdown(3);
+                            setVolumePercentage(80);
+                            navigate('../play');
                         }, 50);
                     }
                 }
@@ -86,43 +66,31 @@ const Tutorial: React.FC = () => {
         }, 50);
 
         return () => clearInterval(interval);
-    }, [currentSlideIndex, countdown]);
+    }, [currentSlideIndex, navigate, setVolumePercentage]);
 
     const tutorialSlides: TutorialSlide[] = [
         {
-            title: "Welcome to VIS Minigame! 🎮",
-            description: "Learn how to play the LaTeX symbol recognition game",
+            title: "1️⃣ START THE GAME:",
+            description: "Hold two Thumbs up to start the game❗ (or be boring and just press Start )",
             image: "/pic1.png",
             content: null
         },
         {
-            title: "Backend Integration ⚙️",
-            description: "Understanding how the system works",
+            title: "2️⃣ GOAL:",
+            description: "Try your best to recreate the symbols 🔍",
             image: "/pic2.png",
             content: null
         },
         {
-            title: "How Recognition Works 🔍",
-            description: "The four-step process",
+            title: "3️⃣ ACCURACY:",
+            description: "see how the computer is interpreting your signs 🎯",
             image: "/pic3.png",
             content: null
         },
         {
-            title: "Game Rules ⏱️",
-            description: "Time-based challenge",
-            image: "/hexagon.png",
-            content: null
-        },
-        {
-            title: "High Score System 🏆",
-            description: "Track your progress",
-            image: "/hexagon.png",
-            content: null
-        },
-        {
-            title: "Pro Tips 💡",
-            description: "Get the best results",
-            image: "/hexagon.png",
+            title: "4️⃣ BONUS POINTS:",
+            description: "Try to collect the coins for extra points 🎉",
+             image: "/pic4.png",
             content: null
         }
     ];
@@ -133,40 +101,52 @@ const Tutorial: React.FC = () => {
 
     const handleSkip = () => {
         setVolumePercentage(80);
-        navigate('../FingerGameMenu');
+        navigate('../play');
     };
 
     const handlePrevious = () => {
         if (!isFirstSlide) {
-            setCurrentSlideIndex(prev => prev - 1);
-            setCountdown(null); // Reset countdown if going back
+            setIsTransitioning(true);
+            setTimeout(() => {
+                setCurrentSlideIndex(prev => prev - 1);
+                setIsTransitioning(false);
+            }, 300);
         }
     };
 
     const handleNext = () => {
         if (!isLastSlide) {
-            setCurrentSlideIndex(prev => prev + 1);
-            setCountdown(null); // Reset countdown if manually advancing
-        } else if (countdown === null) {
-            // If on last slide and countdown hasn't started, start it
-            setCountdown(3);
+            setIsTransitioning(true);
+            setTimeout(() => {
+                setCurrentSlideIndex(prev => prev + 1);
+                setIsTransitioning(false);
+            }, 300);
+        } else {
+            // If on last slide, navigate directly to game
+            setVolumePercentage(80);
+            navigate('../play');
         }
     };
 
     return (
-        <>
-        <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
-          <MusicButton />
-        </div>
         <Box minH="80vh"  bg="gray.50" display="flex" alignItems="center" justifyContent="center" py={6}>
             <Container maxW="80vw">
                 <Card.Root size="lg" boxShadow="xl">
                     <Card.Body p={{ base: 4, md: 6 }}>
                         {/* Header with Skip Button and Progress */}
-                        <HStack justify="space-between" mb={4} align="center">
+                        <HStack 
+                            justify="space-between" 
+                            mb={4} 
+                            align="center"
+                            opacity={isTransitioning ? 0 : 1}
+                            transition="opacity 0.3s ease-in-out"
+                        >
                             <Box flex="1">
-                                <Heading size="xl">{currentSlide.title}</Heading>
-                                <Text color="gray.600" mt={1}>{currentSlide.description}</Text>
+                                <Text fontSize="2xl" color="gray.700">
+                                    <Text as="span" fontWeight="bold">{currentSlide.title}</Text>
+                                    <Text as="span" mx={5}></Text>
+                                    {currentSlide.description}
+                                </Text>
                             </Box>
                             
                             <HStack gap={30} align="center" >
@@ -174,8 +154,6 @@ const Tutorial: React.FC = () => {
                                 <Text textStyle="4xl" fontWeight="semibold" color="gray.700">
                                     {currentSlideIndex + 1}/{tutorialSlides.length}
                                 </Text>
-                                
-                                
                                 
                                 <Button
                                     variant="solid"
@@ -218,7 +196,6 @@ const Tutorial: React.FC = () => {
                             <Button
                                 variant="outline"
                                 onClick={handleNext}
-                                disabled={isLastSlide && countdown !== null}
                                 size="lg"
                                 colorPalette="blue"
                             >
@@ -241,6 +218,9 @@ const Tutorial: React.FC = () => {
                                 minH="50vh"
                                 alignItems="center"
                                 position="relative"
+                                opacity={isTransitioning ? 0 : 1}
+                                transform={isTransitioning ? "translateX(20px)" : "translateX(0)"}
+                                transition="all 0.3s ease-in-out"
                             >
                                 <Image 
                                     src={currentSlide.image} 
@@ -248,63 +228,13 @@ const Tutorial: React.FC = () => {
                                     maxH="70vh"
                                     maxW="70%"
                                     objectFit="contain"
-                                    opacity={countdown !== null ? 0.3 : 1}
-                                    transition="opacity 0.3s"
                                 />
-                                
-                                {/* Countdown Overlay */}
-                                {countdown !== null && countdown > 0 && (
-                                    <Box
-                                        position="absolute"
-                                        top="50%"
-                                        left="50%"
-                                        transform="translate(-50%, -50%)"
-                                        textAlign="center"
-                                    >
-                                        <Text
-                                            fontSize="200px"
-                                            fontWeight="bold"
-                                            color="blue.500"
-                                            lineHeight="1"
-                                            animation="pulse 0.5s ease-in-out"
-                                        >
-                                            {countdown}
-                                        </Text>
-                                        <Text
-                                            fontSize="2xl"
-                                            fontWeight="semibold"
-                                            color="gray.700"
-                                            mt={4}
-                                        >
-                                            Get Ready!
-                                        </Text>
-                                    </Box>
-                                )}
-                                
-                                {countdown === 0 && (
-                                    <Box
-                                        position="absolute"
-                                        top="50%"
-                                        left="50%"
-                                        transform="translate(-50%, -50%)"
-                                        textAlign="center"
-                                    >
-                                        <Text
-                                            fontSize="4xl"
-                                            fontWeight="bold"
-                                            color="green.500"
-                                        >
-                                            Let's Go! 🚀
-                                        </Text>
-                                    </Box>
-                                )}
                             </Box>
                         )}
                     </Card.Body>
                 </Card.Root>
             </Container>
         </Box>
-        </>
     );
 };
 

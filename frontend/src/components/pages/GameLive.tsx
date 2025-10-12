@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitScore } from "@/leaderboardApi";
 import { useRewardSound } from "../../context/rewardSoundContext";
-import { number } from "framer-motion";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
@@ -670,7 +669,7 @@ const GameLive = () => {
       winnerId: number,
       score: number,
       symbols: number,
-      statusMessage = "Great run! Enter your team name to submit the win or show 👍👍 to return to the menu."
+      statusMessage = "Great run! Enter your team name to submit the win, show 👍👍 to play again, or show 👎 to return to the menu."
     ) => {
       postGameDeadlineRef.current = performance.now() + POST_GAME_TIMEOUT_MS;
       setTeamName(winnerId === 1 ? "Player 1" : "Player 2");
@@ -879,6 +878,7 @@ const GameLive = () => {
     const playerCoinCounts: Record<number, number> = { 1: 0, 2: 0 };
     const coinsSpawnedForPlayer: Record<number, number> = { 1: 0, 2: 0 };
     const lastPlayerThumbTime: Record<number, number> = { 1: 0, 2: 0 };
+    const lastPlayerThumbDownTime: Record<number, number> = { 1: 0, 2: 0 };
     let coinsSinceSpecial = 0;
     let nextCoinFavor: 1 | 2 = 1;
     let ytPlayer: any = null;
@@ -1944,9 +1944,16 @@ const GameLive = () => {
         const thumbCount = playerData
           ? playerData.hands.filter(hand => hand.gesture?.id === "Thumb_Up").length
           : 0;
+        const thumbDownCount = playerData
+          ? playerData.hands.filter(hand => hand.gesture?.id === "Thumb_Down").length
+          : 0;
 
         if (thumbCount >= 2) {
           lastPlayerThumbTime[playerId] = now;
+        }
+
+        if (thumbDownCount >= 2) {
+          lastPlayerThumbDownTime[playerId] = now;
         }
 
         if (waitingForAutoStart && thumbCount >= 2) {
@@ -2009,6 +2016,16 @@ const GameLive = () => {
         setTeamName("");
         waitingForStart = true;
         beginMatch();
+      }
+
+      if (
+        postGamePromptRef.current &&
+        lastPlayerThumbDownTime[1] > 0 &&
+        lastPlayerThumbDownTime[2] > 0 &&
+        now - lastPlayerThumbDownTime[1] < 1500 &&
+        now - lastPlayerThumbDownTime[2] < 1500
+      ) {
+        exitToMenu();
       }
     }
 
@@ -2191,7 +2208,7 @@ const GameLive = () => {
                       />
                     </div>
                     <p style={{ color: "rgba(255, 205, 205, 0.85)", fontSize: "0.9rem", margin: 0 }}>
-                      Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s
+                      Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s · show 👎 to return now
                     </p>
 
                     <label style={{ fontSize: "0.95rem", color: "rgba(235, 245, 255, 0.85)" }}>
