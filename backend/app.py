@@ -316,10 +316,14 @@ def save_gesture(submission: GestureSubmission):
     # Add to existing symbol or create new one
     if submission.symbol in gestures:
         gestures[submission.symbol].variants.append(variant)
+        # Update threshold if provided
+        if submission.threshold is not None:
+            gestures[submission.symbol].threshold = submission.threshold
     else:
         gestures[submission.symbol] = GestureDefinition(
             symbol=submission.symbol,
-            variants=[variant]
+            variants=[variant],
+            threshold=submission.threshold if submission.threshold is not None else 0.55
         )
     
     save_gestures(gestures)
@@ -410,10 +414,14 @@ def match_gesture(request: MatchRequest):
             best_similarity = similarity
             best_variant_id = variant.id
     
+    # Get the threshold for this gesture
+    gesture_threshold = gestures[request.symbol].threshold
+    
     return MatchResponse(
         similarity=best_similarity,
         variantId=best_variant_id or "",
-        confidence=best_similarity
+        confidence=best_similarity,
+        threshold=gesture_threshold
     )
 
 
@@ -446,6 +454,47 @@ def delete_gesture_variant(symbol: str, variant_id: str):
     save_gestures(gestures)
     
     return {"success": True, "message": "Variant deleted successfully"}
+
+
+@app.delete("/api/gestures/{symbol}")
+def delete_gesture(symbol: str):
+    """Delete an entire gesture symbol with all its variants."""
+    gestures = load_gestures()
+    
+    if symbol not in gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No gestures found for symbol: {symbol}"
+        )
+    
+    # Remove the entire symbol
+    del gestures[symbol]
+    save_gestures(gestures)
+    
+    return {"success": True, "message": f"Gesture '{symbol}' and all its variants deleted successfully"}
+
+
+@app.patch("/api/gestures/{symbol}/threshold")
+def update_gesture_threshold(symbol: str, threshold: float):
+    """Update the threshold for a specific gesture."""
+    gestures = load_gestures()
+    
+    if symbol not in gestures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No gestures found for symbol: {symbol}"
+        )
+    
+    if threshold < 0 or threshold > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Threshold must be between 0 and 1"
+        )
+    
+    gestures[symbol].threshold = threshold
+    save_gestures(gestures)
+    
+    return {"success": True, "symbol": symbol, "threshold": threshold}
 
 
 if __name__ == "__main__":

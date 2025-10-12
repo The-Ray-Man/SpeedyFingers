@@ -33,6 +33,7 @@ class GestureDefinition(BaseModel):
     """Complete gesture definition with all variants for a symbol"""
     symbol: str  # The symbol or emoji this gesture represents
     variants: List[GestureVariant] = []
+    threshold: float = 0.55  # Similarity threshold for this gesture (default 55%)
 
 
 class GestureSubmission(BaseModel):
@@ -43,6 +44,7 @@ class GestureSubmission(BaseModel):
     activeFingers: Optional[Dict[str, bool]] = None
     activeRegions: Optional[Dict[str, bool]] = None
     metadata: Optional[Dict[str, Any]] = None
+    threshold: Optional[float] = 0.55  # Similarity threshold for this gesture (default 55%)
 
 
 class MatchRequest(BaseModel):
@@ -56,3 +58,4 @@ class MatchResponse(BaseModel):
     similarity: float  # Best similarity score (0-1)
     variantId: str  # ID of the matched variant
     confidence: float  # Confidence score (0-1)
+    threshold: float  # The threshold configured for this gesture
