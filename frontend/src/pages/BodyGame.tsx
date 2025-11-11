@@ -231,7 +231,7 @@ const BodyGame: React.FC = () => {
     useEffect(() => {
         if (gameState === 'shape-still') {
             if (hasCollisionRef.current && !collisionDuringStill) {
-                console.log('Collision detected during evaluation phase!');
+              
                 setCollisionDuringStill(true);
             }
         }

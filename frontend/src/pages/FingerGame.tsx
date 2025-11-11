@@ -223,7 +223,7 @@ const PlayMode: React.FC = () => {
       setGestureGracePeriod(true);
       gracePeriodTimerRef.current = window.setTimeout(() => {
         setGestureGracePeriod(false);
-        console.log("Grace period ended - gesture controls now active");
+       
       }, 5000); // 5 seconds
 
       return () => {
@@ -264,7 +264,7 @@ const PlayMode: React.FC = () => {
     if (isModelReady && !cameraReady && !gameStarted && !gameOver) {
       const initCamera = async () => {
         try {
-          console.log("Starting camera for thumbs up detection...");
+          
           
           const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
@@ -395,8 +395,7 @@ const PlayMode: React.FC = () => {
           const hand2ThumbsUp = isThumbsUp(results.multiHandLandmarks[1]);
           const hand1ThumbsDown = isThumbsDown(results.multiHandLandmarks[0]);
           const hand2ThumbsDown = isThumbsDown(results.multiHandLandmarks[1]);
-          console.log("Thumbs up status - Hand 1:", hand1ThumbsUp, "Hand 2:", hand2ThumbsUp);
-          console.log("Thumbs down status - Hand 1:", hand1ThumbsDown, "Hand 2:", hand2ThumbsDown);
+          
           
           if (hand1ThumbsUp && hand2ThumbsUp) {
             console.log("Both thumbs up detected! Restarting game...");
@@ -449,7 +448,7 @@ const PlayMode: React.FC = () => {
 
           // Auto-accept if similarity is high enough
           if (matchResponse.similarity >= threshold) {
-            console.log(`Match detected! Similarity: ${(matchResponse.similarity * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%)`);
+           
             matchCooldownRef.current = true;
             
             handleSymbolMatch(matchResponse.similarity);
@@ -478,14 +477,14 @@ const PlayMode: React.FC = () => {
     
     setScore((prev) => {
       const newScore = prev + points;
-      console.log(`Score updated: ${prev} -> ${newScore}`);
+     
       playSound();
       return newScore;
     });
     
     setSymbolsCompleted((prev) => {
       const newCount = prev + 1;
-      console.log(`Symbols completed: ${prev} -> ${newCount}`);
+      
       return newCount;
     });
 
@@ -566,7 +565,7 @@ const PlayMode: React.FC = () => {
         });
       }, 1000);
       
-      console.log("Timer started");
+    
     } catch (error) {
       console.error("Failed to start game:", error);
       toaster.create({

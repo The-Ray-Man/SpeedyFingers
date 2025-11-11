@@ -41,7 +41,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         setLoading(true);
         await gestureService.init(); // loads model & wasm once
-        console.log("[GestureContext] Gesture service initialized ✅");
+        
         setReady(true);
       } catch (err) {
         console.error("[GestureContext] Failed to initialize gesture service:", err);
@@ -58,15 +58,14 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Start/stop the camera + detection loop
   useEffect(() => {
-    console.log("[GestureContext] Gesture detection:", enabled);
-    console.log("[GestureContext] Ready state:", ready);
+    
     if (!ready) return;
     let unsubscribe: (() => void) | undefined;
 
     if (enabled) {
       gestureService.start().then(() => {
         unsubscribe = gestureService.subscribe(setGesture);
-        console.log("[GestureContext] Gesture service started 🎥");
+        
       });
     } else {
       gestureService.stop();
@@ -79,12 +78,12 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [enabled, ready]);
 
   const toggleGesture = useCallback(() => {
-        console.log("[GestureContext] Toggling gesture:", !enabled);
+      
         setEnabled(!enabled);
     }, [enabled]);
 
   const setGestureEnabled = useCallback((value: boolean) => {
-    console.log("[GestureContext] Setting gesture enabled:", value);
+  
     setEnabled(value);
   }, []);
 

@@ -1996,7 +1996,7 @@ const GameLive = () => {
       try {
         // Map playerId to correct sound type
         const soundType: 'gesture_match' | 'playerTwo' = playerId === 1 ? 'gesture_match' : 'playerTwo';
-        console.log(soundType)
+        
         playSound(soundType);
       } catch (error) {
         console.error("Failed to play reward sound:", error);

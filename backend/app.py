@@ -30,12 +30,12 @@ GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"  # New gesture storage
 SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "single_player.json"
 MULTI_PLAYER_FILE = LEADERBOARD_DIR / "multi_player.json"
 
-# Lock for thread-safe file operations
+
 file_lock = threading.Lock()
 
 app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
 
-# CORS middleware to allow frontend requests
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, specify your frontend URL

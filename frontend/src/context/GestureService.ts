@@ -126,7 +126,7 @@ private detectionInterval = 300; // run every 200ms (~5 times/sec)
     );
     if (this.running) {
         const state = this.interpretGesture(result);
-        console.log("[GestureService] detected state:", state);
+        
         this.notifyListeners(state);
     }
   } catch (err) {
