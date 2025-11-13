@@ -91,16 +91,6 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
     <GestureContext.Provider value={{ enabled, gesture, toggleGesture, setGestureEnabled, loading }}>
       {children}
 
-      {/* Loading indicator while initializing */}
-      {loading && (
-        <div style={{ width: "100%", padding: "0.25rem 0.2rem", position: "fixed" }}>
-          <Progress.Root value={null} width="100%" colorPalette="blue" size="sm">
-            <Progress.Track>
-              <Progress.Range />
-            </Progress.Track>
-          </Progress.Root>
-        </div>
-      )}
 
       {/* Camera overlay */}
       {enabled && gestureService.videoElement && (
@@ -110,7 +100,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// Video overlay remains unchanged
+
 const VideoOverlay: React.FC<{ video: HTMLVideoElement }> = ({ video }) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 

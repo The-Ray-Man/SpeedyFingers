@@ -151,7 +151,7 @@ const PlayOptions = () => {
     };
   }, []);
 
-  // Detect the specific case: exactly one hand shows two fingers (✌️) and the other is neutral/missing
+  // Detect the specific case: exactly one hand shows two fingers and the other is neutral/missing
   const showTwoFingerJoinHint = useMemo(() => {
     const gest = gesture;
     if (!gest) return false;
@@ -185,8 +185,8 @@ const PlayOptions = () => {
     if (intention !== currentIntention) {
       setCurrentIntention(intention);
       startTimeRef.current = intention && intention !== "conflict" ? Date.now() : null;
-  // Reset visual progress on intention switch
-  setHoldProgress(0);
+      // Reset visual progress on intention switch
+      setHoldProgress(0);
       if (intention) {
        
       }
