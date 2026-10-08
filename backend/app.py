@@ -1,17 +1,21 @@
 import json
+import logging
 import os
+import random
 import shutil
 import threading
 import uuid
-from pathlib import Path
+from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
-    LeaderboardEntry, 
+    GameType,
+    LeaderboardEntry,
     ScoreSubmission,
     GestureDefinition,
     GestureVariant,
@@ -19,7 +23,15 @@ from models import (
     MatchRequest,
     MatchResponse,
 )
+from ai import compare_hand_poses
 from auth import User, get_current_user, require_trusted_user
+
+# uvicorn only configures its own loggers, so set up the root logger for ours
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # File paths for persistent storage. In Docker, DATA_DIR points at a mounted
 # volume so leaderboards and gestures survive container rebuilds.
@@ -32,10 +44,29 @@ BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
 BODY_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "body_multi_player.json"
 GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"
 
+LEADERBOARD_FILES = {
+    ("finger", "single"): FINGER_SINGLE_PLAYER_FILE,
+    ("finger", "multi"): FINGER_MULTI_PLAYER_FILE,
+    ("body", "single"): BODY_SINGLE_PLAYER_FILE,
+    ("body", "multi"): BODY_MULTI_PLAYER_FILE,
+}
 
 file_lock = threading.Lock()
 
-app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize storage on startup."""
+    initialize_storage()
+    logger.info("Leaderboard backend initialized (data dir: %s)", LEADERBOARD_DIR)
+    yield
+
+
+app = FastAPI(
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
 
 
 app.add_middleware(
@@ -125,27 +156,10 @@ def update_leaderboard(
     return entries
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize storage on startup."""
-    initialize_storage()
-    print("✅ Leaderboard backend initialized")
-
-
 @app.get("/api/leaderboard/{game_type}/single", response_model=list[dict])
-def get_game_single_player_leaderboard(game_type: str):
+def get_game_single_player_leaderboard(game_type: GameType):
     """Get single player leaderboard for a specific game type."""
-    if game_type == "finger":
-        file_path = FINGER_SINGLE_PLAYER_FILE
-    elif game_type == "body":
-        file_path = BODY_SINGLE_PLAYER_FILE
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="game_type must be 'finger' or 'body'"
-        )
-    
-    entries = load_leaderboard(file_path)
+    entries = load_leaderboard(LEADERBOARD_FILES[(game_type, "single")])
     return [
         {
             "rank": idx + 1,
@@ -158,19 +172,9 @@ def get_game_single_player_leaderboard(game_type: str):
 
 
 @app.get("/api/leaderboard/{game_type}/multi", response_model=list[dict])
-def get_game_multi_player_leaderboard(game_type: str):
+def get_game_multi_player_leaderboard(game_type: GameType):
     """Get multi player leaderboard for a specific game type."""
-    if game_type == "finger":
-        file_path = FINGER_MULTI_PLAYER_FILE
-    elif game_type == "body":
-        file_path = BODY_MULTI_PLAYER_FILE
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="game_type must be 'finger' or 'body'"
-        )
-    
-    entries = load_leaderboard(file_path)
+    entries = load_leaderboard(LEADERBOARD_FILES[(game_type, "multi")])
     return [
         {
             "rank": idx + 1,
@@ -188,24 +192,10 @@ def submit_score(submission: ScoreSubmission, user: User = Depends(get_current_u
     Submit a new score for either single or multi player mode.
     Returns the updated leaderboard.
     """
-    if submission.game_mode not in ["single", "multi"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="game_mode must be 'single' or 'multi'"
-        )
-    
     if submission.score < 0 or submission.symbols < 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Score and symbols must be non-negative"
-        )
-    
-    # Determine game type (default to finger for backward compatibility)
-    game_type = getattr(submission, 'game_type', 'finger')
-    if game_type not in ["finger", "body"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="game_type must be 'finger' or 'body'"
         )
     
     # Create leaderboard entry
@@ -218,11 +208,7 @@ def submit_score(submission: ScoreSubmission, user: User = Depends(get_current_u
     )
     
     # Update appropriate leaderboard based on game type and mode
-    if game_type == "finger":
-        file_path = FINGER_SINGLE_PLAYER_FILE if submission.game_mode == "single" else FINGER_MULTI_PLAYER_FILE
-    else:  # body
-        file_path = BODY_SINGLE_PLAYER_FILE if submission.game_mode == "single" else BODY_MULTI_PLAYER_FILE
-    
+    file_path = LEADERBOARD_FILES[(submission.game_type, submission.game_mode)]
     updated_entries = update_leaderboard(file_path, entry)
     
     # Return updated leaderboard with rank info
@@ -264,8 +250,8 @@ def load_gestures() -> dict[str, GestureDefinition]:
             for symbol, gesture_data in data.items():
                 result[symbol] = GestureDefinition(**gesture_data)
             return result
-        except Exception as e:
-            print(f"Error loading gestures: {e}")
+        except Exception:
+            logger.exception("Error loading gestures from %s", GESTURES_FILE)
             return {}
 
 
@@ -351,8 +337,6 @@ def get_gesture_by_symbol(symbol: str):
 @app.get("/api/gestures/random/get")
 def get_random_gesture():
     """Get a random symbol and all its gesture variants."""
-    import random
-    
     gestures = load_gestures()
     
     if not gestures:
@@ -382,9 +366,6 @@ def match_gesture(request: MatchRequest):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No gestures found for symbol: {request.symbol}"
         )
-    
-    # Import the comparison logic from ai.py
-    from ai import compare_hand_poses
     
     best_similarity = 0.0
     best_variant_id = None
@@ -480,7 +461,7 @@ def update_gesture_threshold(symbol: str, threshold: float, _: User = Depends(re
 
 
 if __name__ == "__main__":
-    print("🚀 Starting VIS Minigame Leaderboard Backend")
+    logger.info("Starting VIS Minigame Leaderboard Backend")
     uvicorn.run(
         "__main__:app",
         host="0.0.0.0",

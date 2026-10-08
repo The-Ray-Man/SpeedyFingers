@@ -1,6 +1,9 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
+
+GameMode = Literal["single", "multi"]
+GameType = Literal["finger", "body"]
 
 
 class LeaderboardEntry(BaseModel):
@@ -8,15 +11,15 @@ class LeaderboardEntry(BaseModel):
     name: str  # Display name, taken from the trusted X-User-Name header
     score: int
     symbols: int  # Number of symbols completed
-    timestamp: datetime = datetime.now()
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
 class ScoreSubmission(BaseModel):
     # The player's identity is taken from the trusted proxy headers, not the body
     score: int
     symbols: int
-    game_mode: str  # "single" or "multi"
-    game_type: str  # "finger" or "body"
+    game_mode: GameMode
+    game_type: GameType
 
 
 class GestureVariant(BaseModel):

@@ -4,10 +4,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file:
-      - .env
     environment:
       USE_MOCK_AUTHENTICATION: false # Set to `true` to enable mock authentication
+      # Read from the shell or an optional .env file next to this compose file
+      TRUSTED_USER_IDS: ${TRUSTED_USER_IDS:-}
     volumes:
       - backend-data:/data # Leaderboards and gestures; survives rebuilds
     expose:
