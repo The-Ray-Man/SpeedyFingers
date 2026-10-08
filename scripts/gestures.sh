@@ -53,24 +53,71 @@ die() {
 
 # Runs inside the backend container. The first argument is the command; an
 # upload reads the gestures JSON from stdin.
+#
+# It uses plain SQL on the database schema rather than the backend's internal
+# functions, which differ between versions of the backend image.
 read -r -d '' HELPER <<'PY' || true
 import json
+import sqlite3
 import sys
 
-import database
-from models import GestureDefinition
+try:
+    import database
+    from models import GestureDefinition
+
+    DB_FILE = database.DB_FILE
+except (ImportError, AttributeError):
+    sys.exit("This backend version doesn't store gestures in SQLite; update the server first")
+
+SUPPORTED_SCHEMA = 1
+
+
+def connect():
+    # Creates the database if the backend has never started
+    database.init_db()
+    conn = sqlite3.connect(DB_FILE, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version != SUPPORTED_SCHEMA:
+        sys.exit(f"Unsupported database schema version {version}; update this script")
+    return conn
+
+
+def loads(value):
+    return None if value is None else json.loads(value)
+
+
+def dumps(value):
+    return None if value is None else json.dumps(value)
 
 
 def export():
-    with database._read() as conn:
-        rows = conn.execute("SELECT id, symbol, threshold FROM gestures ORDER BY id").fetchall()
-        gestures = {
-            row["symbol"]: database._load_gesture(conn, row).model_dump(mode="json")
-            for row in rows
-        }
-    sys.stdout.buffer.write(json.dumps(gestures, indent=2).encode("utf-8") + b"\n")
-    count = sum(len(g["variants"]) for g in gestures.values())
-    print(f"Downloaded {len(gestures)} symbols with {count} variants", file=sys.stderr)
+    conn = connect()
+    # One transaction, so the gestures and variants come from the same snapshot
+    conn.execute("BEGIN")
+    gestures = conn.execute("SELECT id, symbol, threshold FROM gestures ORDER BY id").fetchall()
+    variants = conn.execute("SELECT * FROM gesture_variants ORDER BY seq").fetchall()
+    conn.execute("COMMIT")
+
+    by_gesture = {}
+    for v in variants:
+        by_gesture.setdefault(v["gesture_id"], []).append({
+            "id": v["id"],
+            "handCount": v["hand_count"],
+            "landmarks": json.loads(v["landmarks"]),
+            "activeFingers": loads(v["active_fingers"]),
+            "activeRegions": loads(v["active_regions"]),
+            "createdAt": v["created_at"],
+            "metadata": loads(v["metadata"]),
+        })
+    result = {
+        g["symbol"]: GestureDefinition(
+            symbol=g["symbol"], threshold=g["threshold"], variants=by_gesture.get(g["id"], [])
+        ).model_dump(mode="json")
+        for g in gestures
+    }
+    sys.stdout.buffer.write(json.dumps(result, indent=2).encode("utf-8") + b"\n")
+    print(f"Downloaded {len(result)} symbols with {len(variants)} variants", file=sys.stderr)
 
 
 def replace():
@@ -79,8 +126,11 @@ def replace():
         sys.exit("The file must be a JSON object that maps symbols to gestures")
     # Validate everything before touching the database
     definitions = {symbol: GestureDefinition(**gesture) for symbol, gesture in data.items()}
-    with database._write() as conn:
-        # Variants are removed by ON DELETE CASCADE
+
+    conn = connect()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute("DELETE FROM gesture_variants")
         conn.execute("DELETE FROM gestures")
         # As in the import of a new database, the key wins over "symbol"
         for symbol, definition in definitions.items():
@@ -89,13 +139,33 @@ def replace():
                 (symbol, definition.threshold),
             ).lastrowid
             for variant in definition.variants:
-                database._insert_variant(conn, gesture_id, variant)
+                v = variant.model_dump(mode="json")
+                conn.execute(
+                    """
+                    INSERT INTO gesture_variants
+                        (gesture_id, id, hand_count, landmarks, active_fingers,
+                         active_regions, created_at, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        gesture_id,
+                        v["id"],
+                        v["handCount"],
+                        json.dumps(v["landmarks"]),
+                        dumps(v["activeFingers"]),
+                        dumps(v["activeRegions"]),
+                        v["createdAt"],
+                        dumps(v["metadata"]),
+                    ),
+                )
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
     count = sum(len(d.variants) for d in definitions.values())
     print(f"Uploaded {len(definitions)} symbols with {count} variants", file=sys.stderr)
 
 
-# Creates the database if the backend has never started
-database.init_db()
 {"export": export, "replace": replace}[sys.argv[1]]()
 PY
 
