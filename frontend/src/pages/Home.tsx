@@ -185,6 +185,12 @@ const Home = () => {
               </VStack>
             </Box>
           </SimpleGrid>
+
+          {/* Credits */}
+          <Text fontSize="sm" color="gray.600" _dark={{ color: "gray.400" }} textAlign="center" maxW="3xl" mx="auto">
+            Speedy Fingers was developed by Alok Malla, Darian Mettler, Lejs Behric, Roberto Oliveira Pais,
+            Ryo Bertolissi and Tom Offermann during the VIScon 2025 Hackathon, where their team took home 🏆 first place.
+          </Text>
         </VStack>
       </Container>
       
