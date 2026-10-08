@@ -72,11 +72,11 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ### Backend runtime
 
-- [ ] **The server runs with `reload=True`** (`app.py` `__main__`), which is
+- [x] **The server runs with `reload=True`** (`app.py` `__main__`), which is
   a file-watching dev server. In the Dockerfile, use
   `uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers` with no
   reload.
-- [ ] The container runs as root. Add a non-root `USER` and
+- [x] The container runs as root. Add a non-root `USER` and
   `pip install --no-cache-dir`.
 
 ## 🟠 Should fix

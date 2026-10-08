@@ -1,14 +1,29 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Runtime data lives on a volume; the committed backend/data is only seed data
+# Run as an unprivileged user
+RUN useradd --system --uid 10001 --no-create-home app \
+    && mkdir -p /data \
+    && chown app:app /data
+
+# Runtime data lives on a volume; the committed backend/data is only seed data.
+# A fresh named volume inherits the ownership of /data set above.
 ENV DATA_DIR=/data
 VOLUME /data
 
-CMD ["python", "app.py"]
+USER app
+
+EXPOSE 8000
+
+# Production server: no reload. Traefik is the only client on the internal
+# network, so trust its X-Forwarded-* headers.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
