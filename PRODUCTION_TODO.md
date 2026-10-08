@@ -230,9 +230,12 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ## 🟡 Housekeeping
 
-- [ ] Delete or move `other/index.html` (prototype), `Vision/vision.py`
+- [x] Delete or move `other/index.html` (prototype), `Vision/vision.py`
   (unused experiment), `todo_tom.txt`, and the root `package-lock.json`
   (91 bytes, no `package.json`).
+  *Done: all four deleted (still in git history). The one idea in
+  `todo_tom.txt` is kept below.*
+- [ ] Add an animation for picking a game at the start (from `todo_tom.txt`).
 - [x] Use `npm ci` instead of `npm install` in the frontend Dockerfile so
   builds are reproducible.
   *Done; a `.dockerignore` also keeps local `node_modules` and `dist` out of
