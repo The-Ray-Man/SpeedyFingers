@@ -37,7 +37,9 @@ and has been removed.
   from the app itself (`public/mediapipe`). The webcam is used only in
   the browser and video is never uploaded.
 - **Backend** (`backend/`): FastAPI. It stores leaderboards and gesture
-  definitions as JSON files in `backend/data/`. Server-side matching
+  definitions in a SQLite database (`speedyfingers.db` in `DATA_DIR`,
+  `backend/data/` by default). Every write is a single transaction, so
+  concurrent requests can't lose updates. Server-side matching
   (`backend/ai.py`, used by Dev Mode's test feature) normalizes the landmarks to the wrist and to hand size,
   then turns their average distance into a similarity score with
   `exp(-5·d)`.
@@ -161,32 +163,37 @@ removed with `docker image prune`.
 
 ### Data and backups
 
-Leaderboards and gestures are stored in the named volume `backend-data`
-(mounted at `/data` in the backend container), so they survive updates and
-container rebuilds. On the very first start, the backend copies the committed
-gestures from `backend/data/gestures.json` into the empty volume; after that it
-never overwrites them. Leaderboards start empty.
+Leaderboards and gestures are stored in the SQLite database
+`/data/speedyfingers.db`, in the named volume `backend-data`, so they survive
+updates and container rebuilds. When the backend starts with no database, it
+creates one and imports the gestures from `/data/gestures.json` if that file
+exists (written by versions before the database), otherwise from the
+committed `backend/data/gestures.json`. After that it never imports again.
+Leaderboards start empty.
 
-Leaderboard entries are keyed by user id. Score files written by older
-versions (entries without `user_id`) are not migrated. Delete them from the
-volume when upgrading:
+Score files from older versions (`/data/*_player.json`) are not migrated.
+After the first start with the database, you can delete them along with
+`/data/gestures.json`:
 
 ```bash
-docker compose exec backend sh -c 'rm -f /data/*_player.json'
-docker compose restart backend
+docker compose exec backend sh -c 'rm -f /data/*_player.json /data/gestures.json'
 ```
 
-Back up the data:
+Back up the database. The image has no `sqlite3` CLI, so this uses Python's
+backup API, which is safe while the app is running:
 
 ```bash
-docker compose cp backend:/data ./backup-$(date +%F)
+docker compose exec backend python -c "import sqlite3; d = sqlite3.connect('/data/backup.db'); sqlite3.connect('/data/speedyfingers.db').backup(d); d.close()"
+docker compose cp backend:/data/backup.db ./speedyfingers-$(date +%F).db
+docker compose exec backend rm /data/backup.db
 ```
 
 Restore a backup:
 
 ```bash
-docker compose cp ./backup-YYYY-MM-DD/. backend:/data
-docker compose restart backend
+docker compose cp ./speedyfingers-YYYY-MM-DD.db backend:/data/restore.db
+docker compose exec backend python -c "import sqlite3; d = sqlite3.connect('/data/speedyfingers.db'); sqlite3.connect('/data/restore.db').backup(d); d.close()"
+docker compose exec backend rm /data/restore.db
 ```
 
 > `docker compose down -v` deletes the volume and all data with it. Use

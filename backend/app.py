@@ -1,13 +1,8 @@
-import json
 import logging
-import os
 import random
-import shutil
-import threading
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-from pathlib import Path
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -17,7 +12,6 @@ from models import (
     GameType,
     LeaderboardEntry,
     ScoreSubmission,
-    GestureDefinition,
     GestureVariant,
     GestureSubmission,
     MatchRequest,
@@ -25,6 +19,7 @@ from models import (
 )
 from ai import compare_hand_poses
 from auth import User, get_current_user, require_trusted_user
+import database
 
 # uvicorn only configures its own loggers, so set up the root logger for ours
 logging.basicConfig(
@@ -33,28 +28,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# File paths for persistent storage. In Docker, DATA_DIR points at a mounted
-# volume so leaderboards and gestures survive container rebuilds.
-LEADERBOARD_DIR = Path(os.environ.get("DATA_DIR", "data"))
-# Committed data shipped with the code, copied into DATA_DIR on first start
-SEED_DIR = Path(__file__).parent / "data"
-FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
-FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
-GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"
-
-LEADERBOARD_FILES = {
-    ("finger", "single"): FINGER_SINGLE_PLAYER_FILE,
-    ("finger", "multi"): FINGER_MULTI_PLAYER_FILE,
-}
-
-file_lock = threading.Lock()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize storage on startup."""
-    initialize_storage()
-    logger.info("Leaderboard backend initialized (data dir: %s)", LEADERBOARD_DIR)
+    database.init_db()
+    logger.info("Leaderboard backend initialized (database: %s)", database.DB_FILE)
     yield
 
 
@@ -74,86 +53,10 @@ app.add_middleware(
 )
 
 
-def initialize_storage():
-    """Create data directory and initialize missing files from seed data or empty defaults."""
-    LEADERBOARD_DIR.mkdir(parents=True, exist_ok=True)
-
-    defaults = {
-        FINGER_SINGLE_PLAYER_FILE: "[]",
-        FINGER_MULTI_PLAYER_FILE: "[]",
-        GESTURES_FILE: "{}",
-    }
-    for file_path, default in defaults.items():
-        if file_path.exists():
-            continue
-        seed_file = SEED_DIR / file_path.name
-        if seed_file.exists():
-            shutil.copyfile(seed_file, file_path)
-        else:
-            file_path.write_text(default)
-
-
-def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
-    """Load leaderboard from file with thread safety."""
-    with file_lock:
-        try:
-            data = json.loads(file_path.read_text())
-            return [LeaderboardEntry(**entry) for entry in data]
-        except Exception:
-            return []
-
-
-def save_leaderboard(file_path: Path, entries: list[LeaderboardEntry]):
-    """Save leaderboard to file with thread safety."""
-    with file_lock:
-        data = [entry.model_dump(mode="json") for entry in entries]
-        file_path.write_text(json.dumps(data, indent=2))
-
-
-def update_leaderboard(
-    file_path: Path, 
-    new_entry: LeaderboardEntry, 
-    max_entries: int = 10
-) -> list[LeaderboardEntry]:
-    """
-    Update leaderboard with new entry, maintaining top scores.
-    Returns updated leaderboard with ranks.
-    """
-    entries = load_leaderboard(file_path)
-    
-    # Check if the user already has an entry (keyed by the unique user id)
-    existing_index = next(
-        (i for i, e in enumerate(entries) if e.user_id == new_entry.user_id), 
-        None
-    )
-    
-    if existing_index is not None:
-        # Update only if new score is better
-        if new_entry.score > entries[existing_index].score:
-            entries[existing_index] = new_entry
-        else:
-            # Keep the displayed name in sync with the user's current name
-            entries[existing_index].name = new_entry.name
-    else:
-        # Add new entry
-        entries.append(new_entry)
-    
-    # Sort by score (descending), then by symbols (descending)
-    entries.sort(key=lambda x: (x.score, x.symbols), reverse=True)
-    
-    # Keep only top entries
-    entries = entries[:max_entries]
-    
-    # Save updated leaderboard
-    save_leaderboard(file_path, entries)
-    
-    return entries
-
-
 @app.get("/api/leaderboard/{game_type}/single", response_model=list[dict])
 def get_game_single_player_leaderboard(game_type: GameType):
     """Get single player leaderboard for a specific game type."""
-    entries = load_leaderboard(LEADERBOARD_FILES[(game_type, "single")])
+    entries = database.load_leaderboard(game_type, "single")
     return [
         {
             "rank": idx + 1,
@@ -168,7 +71,7 @@ def get_game_single_player_leaderboard(game_type: GameType):
 @app.get("/api/leaderboard/{game_type}/multi", response_model=list[dict])
 def get_game_multi_player_leaderboard(game_type: GameType):
     """Get multi player leaderboard for a specific game type."""
-    entries = load_leaderboard(LEADERBOARD_FILES[(game_type, "multi")])
+    entries = database.load_leaderboard(game_type, "multi")
     return [
         {
             "rank": idx + 1,
@@ -191,7 +94,7 @@ def submit_score(submission: ScoreSubmission, user: User = Depends(get_current_u
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Score and symbols must be non-negative"
         )
-    
+
     # Create leaderboard entry
     entry = LeaderboardEntry(
         user_id=user.id,
@@ -200,11 +103,10 @@ def submit_score(submission: ScoreSubmission, user: User = Depends(get_current_u
         symbols=submission.symbols,
         timestamp=datetime.now()
     )
-    
+
     # Update appropriate leaderboard based on game type and mode
-    file_path = LEADERBOARD_FILES[(submission.game_type, submission.game_mode)]
-    updated_entries = update_leaderboard(file_path, entry)
-    
+    updated_entries = database.update_leaderboard(submission.game_type, submission.game_mode, entry)
+
     # Return updated leaderboard with rank info
     name_key = "name" if submission.game_mode == "single" else "team"
     return {
@@ -235,35 +137,12 @@ def health_check():
 
 # ==================== GESTURE MANAGEMENT ENDPOINTS ====================
 
-def load_gestures() -> dict[str, GestureDefinition]:
-    """Load all gestures from file with thread safety."""
-    with file_lock:
-        try:
-            data = json.loads(GESTURES_FILE.read_text())
-            result = {}
-            for symbol, gesture_data in data.items():
-                result[symbol] = GestureDefinition(**gesture_data)
-            return result
-        except Exception:
-            logger.exception("Error loading gestures from %s", GESTURES_FILE)
-            return {}
-
-
-def save_gestures(gestures: dict[str, GestureDefinition]):
-    """Save all gestures to file with thread safety."""
-    with file_lock:
-        data = {symbol: gesture.model_dump(mode="json") for symbol, gesture in gestures.items()}
-        GESTURES_FILE.write_text(json.dumps(data, indent=2, default=str))
-
-
 @app.post("/api/gestures", status_code=status.HTTP_201_CREATED)
 def save_gesture(submission: GestureSubmission, _: User = Depends(require_trusted_user)):
     """
     Save a new gesture variant for a symbol.
     Creates a new symbol entry if it doesn't exist.
     """
-    gestures = load_gestures()
-    
     # Create new variant with unique ID
     variant = GestureVariant(
         id=str(uuid.uuid4()),
@@ -274,42 +153,29 @@ def save_gesture(submission: GestureSubmission, _: User = Depends(require_truste
         createdAt=datetime.now(),
         metadata=submission.metadata,
     )
-    
-    # Add to existing symbol or create new one
-    if submission.symbol in gestures:
-        gestures[submission.symbol].variants.append(variant)
-        # Update threshold if provided
-        if submission.threshold is not None:
-            gestures[submission.symbol].threshold = submission.threshold
-    else:
-        gestures[submission.symbol] = GestureDefinition(
-            symbol=submission.symbol,
-            variants=[variant],
-            threshold=submission.threshold if submission.threshold is not None else 0.55
-        )
-    
-    save_gestures(gestures)
-    
+
+    # Add to existing symbol (updating its threshold if provided) or create new one
+    total_variants = database.add_gesture_variant(submission.symbol, variant, submission.threshold)
+
     return {
         "success": True,
         "symbol": submission.symbol,
         "variantId": variant.id,
-        "totalVariants": len(gestures[submission.symbol].variants)
+        "totalVariants": total_variants
     }
 
 
 @app.get("/api/gestures")
 def get_all_gestures():
     """Get a list of all known symbols and their variant counts."""
-    gestures = load_gestures()
     return {
         "symbols": [
             {
                 "symbol": symbol,
-                "variantCount": len(definition.variants),
-                "lastUpdated": max(v.createdAt for v in definition.variants) if definition.variants else None
+                "variantCount": len(variants),
+                "lastUpdated": max(v.createdAt for v in variants) if variants else None
             }
-            for symbol, definition in gestures.items()
+            for symbol, variants in database.list_gesture_summaries()
         ]
     }
 
@@ -317,34 +183,37 @@ def get_all_gestures():
 @app.get("/api/gestures/{symbol}")
 def get_gesture_by_symbol(symbol: str):
     """Get all gesture variants for a specific symbol."""
-    gestures = load_gestures()
-    
-    if symbol not in gestures:
+    definition = database.load_gesture(symbol)
+
+    if definition is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No gestures found for symbol: {symbol}"
         )
-    
-    return gestures[symbol].model_dump(mode="json")
+
+    return definition.model_dump(mode="json")
 
 
 @app.get("/api/gestures/random/get")
 def get_random_gesture():
     """Get a random symbol and all its gesture variants."""
-    gestures = load_gestures()
-    
-    if not gestures:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No gestures available. Please record some gestures first."
-        )
-    
-    # Select random symbol
-    symbol = random.choice(list(gestures.keys()))
-    return {
-        "symbol": symbol,
-        "definition": gestures[symbol].model_dump(mode="json")
-    }
+    symbols = database.list_symbols()
+
+    # Select random symbol (retry if it was deleted in the meantime)
+    while symbols:
+        symbol = random.choice(symbols)
+        definition = database.load_gesture(symbol)
+        if definition is not None:
+            return {
+                "symbol": symbol,
+                "definition": definition.model_dump(mode="json")
+            }
+        symbols = database.list_symbols()
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No gestures available. Please record some gestures first."
+    )
 
 
 @app.post("/api/gestures/match")
@@ -353,27 +222,27 @@ def match_gesture(request: MatchRequest):
     Compare submitted landmarks with stored gesture variants.
     Returns the best similarity score and matched variant.
     """
-    gestures = load_gestures()
-    
-    if request.symbol not in gestures:
+    definition = database.load_gesture(request.symbol)
+
+    if definition is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No gestures found for symbol: {request.symbol}"
         )
-    
+
     best_similarity = 0.0
     best_variant_id = None
-    
+
     # Compare against all variants
-    for variant in gestures[request.symbol].variants:
+    for variant in definition.variants:
         similarity = compare_hand_poses(request.landmarks, variant.landmarks)
         if similarity > best_similarity:
             best_similarity = similarity
             best_variant_id = variant.id
-    
+
     # Get the threshold for this gesture
-    gesture_threshold = gestures[request.symbol].threshold
-    
+    gesture_threshold = definition.threshold
+
     return MatchResponse(
         similarity=best_similarity,
         variantId=best_variant_id or "",
@@ -384,73 +253,56 @@ def match_gesture(request: MatchRequest):
 
 @app.delete("/api/gestures/{symbol}/{variant_id}")
 def delete_gesture_variant(symbol: str, variant_id: str, _: User = Depends(require_trusted_user)):
-    """Delete a specific gesture variant."""
-    gestures = load_gestures()
-    
-    if symbol not in gestures:
+    """Delete a specific gesture variant (and the symbol if no variants are left)."""
+    deleted = database.delete_gesture_variant(symbol, variant_id)
+
+    if deleted is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No gestures found for symbol: {symbol}"
         )
-    
-    # Find and remove the variant
-    variants = gestures[symbol].variants
-    initial_count = len(variants)
-    gestures[symbol].variants = [v for v in variants if v.id != variant_id]
-    
-    if len(gestures[symbol].variants) == initial_count:
+
+    if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Variant {variant_id} not found for symbol {symbol}"
         )
-    
-    # Remove symbol entirely if no variants left
-    if not gestures[symbol].variants:
-        del gestures[symbol]
-    
-    save_gestures(gestures)
-    
+
     return {"success": True, "message": "Variant deleted successfully"}
 
 
 @app.delete("/api/gestures/{symbol}")
 def delete_gesture(symbol: str, _: User = Depends(require_trusted_user)):
     """Delete an entire gesture symbol with all its variants."""
-    gestures = load_gestures()
-    
-    if symbol not in gestures:
+    if not database.delete_gesture(symbol):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No gestures found for symbol: {symbol}"
         )
-    
-    # Remove the entire symbol
-    del gestures[symbol]
-    save_gestures(gestures)
-    
+
     return {"success": True, "message": f"Gesture '{symbol}' and all its variants deleted successfully"}
 
 
 @app.patch("/api/gestures/{symbol}/threshold")
 def update_gesture_threshold(symbol: str, threshold: float, _: User = Depends(require_trusted_user)):
     """Update the threshold for a specific gesture."""
-    gestures = load_gestures()
-    
-    if symbol not in gestures:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No gestures found for symbol: {symbol}"
-        )
-    
+    not_found = HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"No gestures found for symbol: {symbol}"
+    )
+
+    if symbol not in database.list_symbols():
+        raise not_found
+
     if threshold < 0 or threshold > 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Threshold must be between 0 and 1"
         )
-    
-    gestures[symbol].threshold = threshold
-    save_gestures(gestures)
-    
+
+    if not database.update_gesture_threshold(symbol, threshold):
+        raise not_found
+
     return {"success": True, "symbol": symbol, "threshold": threshold}
 
 
@@ -462,4 +314,3 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
     )
-

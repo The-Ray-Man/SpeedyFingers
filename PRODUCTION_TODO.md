@@ -73,23 +73,28 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   named volume `backend-data` there, and missing files are seeded from
   `backend/data/` on first start. Back up the running container's data
   before the first redeploy.*
-- [ ] **JSON writes aren't atomic.** `write_text` can leave a truncated
+- [x] **JSON writes aren't atomic.** `write_text` can leave a truncated
   `gestures.json` (684 KB) after a crash. `load_gestures` then silently
   returns `{}`, and the next save overwrites everything. Write to a temp file
   and `os.replace` it, and stop swallowing parse errors.
-- [ ] **Race conditions.** `update_leaderboard`, `save_gesture` and the
+  *Done: storage moved to SQLite (`backend/database.py`). Writes are
+  transactional, so a crash can't leave half-written data.*
+- [x] **Race conditions.** `update_leaderboard`, `save_gesture` and the
   delete handlers load and then save under two separate lock acquisitions,
   so concurrent requests can lose updates. Hold one lock for the whole
   read-modify-write. The lock also only works with a single uvicorn worker.
+  *Done: every read-modify-write runs in one `BEGIN IMMEDIATE` transaction,
+  which also works across several uvicorn workers. With 80 parallel gesture
+  saves, the old code kept 9; the new code keeps all 80.*
 - [x] Separate seed data from runtime data. Committed leaderboard entries,
   such as test scores, shouldn't ship as production state.
   *Partly done in #1: runtime data now lives in the volume, but the
   committed leaderboard files (with test scores) are still used as seed
   data on first start.* *Done: the committed leaderboard files were removed;
-  only `gestures.json` is seed data. Leaderboards start empty, and
-  `backend/.gitignore` ignores the runtime score files. Old score files in an
-  existing volume aren't migrated (entries now need a `user_id`) and should
-  be deleted on upgrade (see README "Data and backups").*
+  only `gestures.json` is seed data, imported into a new SQLite database on
+  first start. Leaderboards start empty, and `backend/.gitignore` ignores the
+  local database. Old score files in an existing volume aren't migrated and
+  can be deleted on upgrade (see README "Data and backups").*
 
 ### Backend runtime
 
@@ -202,8 +207,7 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   dependencies.
   *Done: removed. `BodyGameMenu` and `TutorialBody` were deleted, and the
   backend only accepts `game_type: "finger"`, so
-  `/api/leaderboard/body/...` now returns 422. Existing `body_*.json` files
-  in the data volume are no longer read and can be deleted.*
+  `/api/leaderboard/body/...` now returns 422.*
 - [x] Use the API base URL consistently. `gestureApi.ts` hard-codes `/api`,
   while `leaderboardApi.ts` reads `VITE_API_BASE_URL`. The frontend
   Dockerfile sets `REACT_APP_API_URL`, which Vite ignores.
