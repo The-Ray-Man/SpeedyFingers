@@ -272,7 +272,7 @@ const PlayOptions = () => {
       
       <Container maxW="7xl">
         <VStack gap={{ base: 10, md: 12 }} align="stretch">
-          <HStack gap="7em" align="end" justify="center">
+          <HStack gap={{ base: "3em", "2xl": "7em" }} align="end" justify="center">
             <Box position="relative" display="inline-block">
               {showTwoFingerJoinHint && (
                 <Box

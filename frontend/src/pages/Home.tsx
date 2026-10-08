@@ -26,8 +26,8 @@ const Home = () => {
       <div style={{ position: "absolute", bottom: "1rem", right: "1rem" }}>
           <MusicButton />
         </div>
-      <Container maxW="6xl" py={{ base: 12, md: 16 }}>
-        <VStack gap={16} align="stretch">
+      <Container maxW="6xl" py={{ base: 8, md: 10 }}>
+        <VStack gap={10} align="stretch">
           {/* Header Section */}
           <Box textAlign="center">
             <Heading size="6xl" fontWeight="extrabold" lineHeight="1.1" mb={4}>
