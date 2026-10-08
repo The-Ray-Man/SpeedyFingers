@@ -32,7 +32,7 @@ const FingerGameMenu = () => {
 
   <Button 
     size="2xl" 
-    onClick={() => navigate('/TutorialFinger')}
+    onClick={() => navigate('/tutorialFinger')}
     colorPalette="purple"
     variant="solid"
     px={8}

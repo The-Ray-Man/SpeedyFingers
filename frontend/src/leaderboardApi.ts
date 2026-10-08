@@ -5,7 +5,9 @@
  * import { submitScore, getGameSinglePlayerLeaderboard, getGameMultiPlayerLeaderboard } from './leaderboardApi';
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+import { API_BASE_URL } from "./apiConfig";
+
+export type GameType = "finger";
 
 export type LeaderboardEntry = {
   rank: number;
@@ -20,7 +22,7 @@ export type ScoreSubmission = {
   score: number;
   symbols: number;
   gameMode: "single" | "multi";
-  gameType?: "finger" | "body";
+  gameType?: GameType;
 };
 
 /**
@@ -52,10 +54,10 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
 
 /**
  * Get the single player leaderboard for a specific game type
- * @param gameType Type of game ("finger" or "body")
+ * @param gameType Type of game (currently only "finger")
  * @returns Array of single player leaderboard entries
  */
-export async function getGameSinglePlayerLeaderboard(gameType: "finger" | "body"): Promise<LeaderboardEntry[]> {
+export async function getGameSinglePlayerLeaderboard(gameType: GameType): Promise<LeaderboardEntry[]> {
   const response = await fetch(`${API_BASE_URL}/leaderboard/${gameType}/single`);
 
   if (!response.ok) {
@@ -67,10 +69,10 @@ export async function getGameSinglePlayerLeaderboard(gameType: "finger" | "body"
 
 /**
  * Get the multi player leaderboard for a specific game type
- * @param gameType Type of game ("finger" or "body")
+ * @param gameType Type of game (currently only "finger")
  * @returns Array of multi player leaderboard entries
  */
-export async function getGameMultiPlayerLeaderboard(gameType: "finger" | "body"): Promise<LeaderboardEntry[]> {
+export async function getGameMultiPlayerLeaderboard(gameType: GameType): Promise<LeaderboardEntry[]> {
   const response = await fetch(`${API_BASE_URL}/leaderboard/${gameType}/multi`);
 
   if (!response.ok) {

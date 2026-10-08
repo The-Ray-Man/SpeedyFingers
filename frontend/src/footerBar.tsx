@@ -51,8 +51,8 @@ const FooterBar: React.FC = () => {
         setSelectMusicBtn(musicSelected);
 
         // Confirmation: only act if both hands show SAME gesture type and confirm is true
-        const firstType = firstHand && (firstHand as any)?.type;
-        const secondType = secondHand && (secondHand as any)?.type;
+        const firstType = firstHand?.type;
+        const secondType = secondHand?.type;
         const sameType = !!firstType && !!secondType && firstType === secondType;
 
         if (gesture.confirm && sameType && (firstType === "THUMBS_UP" || firstType === "ILOVEYOU")) {

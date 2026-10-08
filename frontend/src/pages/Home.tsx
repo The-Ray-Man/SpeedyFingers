@@ -12,7 +12,6 @@ import {
 } from "@chakra-ui/react";
 import { FiPlayCircle, FiSettings } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import type { ElementType } from "react";
 import MusicButton from "../components/design/MusicButton.tsx";
 
 const Home = () => {

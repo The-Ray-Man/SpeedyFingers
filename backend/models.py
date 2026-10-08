@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 GameMode = Literal["single", "multi"]
-GameType = Literal["finger", "body"]
+GameType = Literal["finger"]
 
 
 class LeaderboardEntry(BaseModel):

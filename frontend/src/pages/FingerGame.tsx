@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -12,11 +12,11 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
-import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame } from "../mediapipe";
+import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame, type NormalizedLandmark } from "../mediapipe";
 import { getRandomGesture, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray } from "../advancedGestureRecognition";
 import { matchGestureLocally } from "../utils/localGestureMatcher";
-import { submitScore, getGameSinglePlayerLeaderboard, type LeaderboardEntry } from "../leaderboardApi";
+import { submitScore } from "../leaderboardApi";
 import { useUser } from "@/context/UserContext";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { useRewardSound } from "../context/rewardSoundContext";
@@ -53,11 +53,9 @@ const PlayMode: React.FC = () => {
   const [isModelReady, setIsModelReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const { user } = useUser();
   const [waitingForThumbsUp, setWaitingForThumbsUp] = useState(true);
   const [cameraReady, setCameraReady] = useState(false);
-  const [bothThumbsUpDetected, setBothThumbsUpDetected] = useState(false);
   const [autoReturnCountdown, setAutoReturnCountdown] = useState(30);
   const [waitingForReplay, setWaitingForReplay] = useState(false);
   const [gestureGracePeriod, setGestureGracePeriod] = useState(true);
@@ -77,15 +75,14 @@ const PlayMode: React.FC = () => {
     currentDefinition: null as GestureDefinition | null
   });
   const matchCooldownRef = useRef<boolean>(false);
-  const currentLandmarksRef = useRef<any>(null);
+  const currentLandmarksRef = useRef<NormalizedLandmark[][] | null>(null);
   const waitingForThumbsUpRef = useRef<boolean>(true);
   const waitingForReplayRef = useRef<boolean>(false);
   const gestureGracePeriodRef = useRef<boolean>(true);
 
   // Thumbs up detection function
-  const isThumbsUp = (landmarks: any) => {
+  const isThumbsUp = (landmarks: NormalizedLandmark[]) => {
     const THUMB_TIP = 4;
-    const THUMB_IP = 3;
     const INDEX_TIP = 8;
     const INDEX_PIP = 7;
     const INDEX_MCP = 5;
@@ -116,7 +113,7 @@ const PlayMode: React.FC = () => {
   };
 
   // Thumbs down detection function
-  const isThumbsDown = (landmarks: any) => {
+  const isThumbsDown = (landmarks: NormalizedLandmark[]) => {
     const THUMB_TIP = 4;
     const INDEX_TIP = 8;
     const INDEX_PIP = 7;
@@ -190,19 +187,6 @@ const PlayMode: React.FC = () => {
     gestureGracePeriodRef.current = gestureGracePeriod;
   }, [gameStarted, gameOver, currentSymbol, currentDefinition, waitingForThumbsUp, waitingForReplay, gestureGracePeriod]);
 
-  // Load leaderboard on mount
-  const loadLeaderboard = useCallback(async () => {
-    try {
-      const data = await getGameSinglePlayerLeaderboard('finger');
-      setLeaderboard(data);
-    } catch (error) {
-      console.error('Failed to load leaderboard:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadLeaderboard();
-  }, [loadLeaderboard]);
 
   // Grace period for gesture controls after game over (5 seconds)
   useEffect(() => {
@@ -324,7 +308,6 @@ const PlayMode: React.FC = () => {
           
           if (hand1ThumbsUp && hand2ThumbsUp) {
             console.log("Both thumbs up detected! Starting game...");
-            setBothThumbsUpDetected(true);
             waitingForThumbsUpRef.current = false;
             setWaitingForThumbsUp(false);
             
@@ -565,9 +548,6 @@ const PlayMode: React.FC = () => {
         description: "Score submitted successfully!",
         type: "success",
       });
-      
-      // Reload leaderboard after submission
-      await loadLeaderboard();
       
       // Transition to waiting for replay
       setWaitingForReplay(true);

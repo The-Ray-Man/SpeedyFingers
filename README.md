@@ -19,8 +19,8 @@ The project started from the VIScon Hackathon template.
 Menus can also be controlled with gestures. For example, 🤟 switches between
 options and 👎 selects one.
 
-A full-body mode (`BodyGame`, `TutorialBody`, pose detection with TensorFlow.js)
-exists in the code, but its routes are switched off in `frontend/src/App.tsx`.
+An earlier full-body mode (pose detection with TensorFlow.js) was unfinished
+and has been removed.
 
 ## Architecture
 
@@ -33,8 +33,8 @@ exists in the code, but its routes are switched off in `frontend/src/App.tsx`.
 
 - **Frontend** (`frontend/`): React 19, TypeScript, Vite, and Chakra UI v3.
   Hand landmarks and the built-in gesture classifier come from
-  `@mediapipe/tasks-vision`. The WASM runtime and `.task` models are loaded at
-  runtime from jsDelivr and Google Cloud Storage. The webcam is used only in
+  `@mediapipe/tasks-vision`. The WASM runtime and `.task` models are served
+  from the app itself (`public/mediapipe`). The webcam is used only in
   the browser and video is never uploaded.
 - **Backend** (`backend/`): FastAPI. It stores leaderboards and gesture
   definitions in a SQLite database (`speedyfingers.db` in `DATA_DIR`,
@@ -226,8 +226,10 @@ npm run dev                    # http://localhost:5173
 ```
 
 The Vite dev server forwards `/api` to `http://localhost:8000`. To use a
-different API URL, set `VITE_API_BASE_URL`. Only the leaderboard client reads
-this variable.
+different API URL, set `VITE_API_BASE_URL` (read at build time; the frontend
+Docker image accepts it as a build argument). See
+[`frontend/README.md`](frontend/README.md) for the frontend's structure and
+scripts.
 
 ### Smoke test
 
@@ -246,9 +248,9 @@ All routes are under `/api`.
 | Method | Path | Description |
 | :----- | :--- | :---------- |
 | `GET` | `/api/health` | Health check |
-| `GET` | `/api/leaderboard/{finger\|body}/{single\|multi}` | Top 10 for a game type and mode |
+| `GET` | `/api/leaderboard/finger/{single\|multi}` | Top 10 for a game mode |
 | `GET` | `/api/me` | The current user: `{id, name, canManageGestures}` |
-| `POST` | `/api/score/submit` | Submit `{score, symbols, game_mode, game_type}` for the current user. The best score per user id is kept. |
+| `POST` | `/api/score/submit` | Submit `{score, symbols, game_mode, game_type: "finger"}` for the current user. The best score per user id is kept. |
 | `GET` | `/api/gestures` | List symbols and their variant counts |
 | `GET` | `/api/gestures/{symbol}` | All variants of one symbol |
 | `GET` | `/api/gestures/random/get` | A random symbol with its variants |

@@ -1,8 +1,8 @@
 # Production readiness checklist
 
 Findings from a review of the codebase on 2026-10-08. The frontend builds
-(`npm run build` passes). `npm run lint` reports 90 problems (77 errors and
-13 warnings).
+(`npm run build` passes). `npm run lint` reported 90 problems (77 errors and
+13 warnings); it now reports 0 errors and 7 warnings.
 
 ## 🔴 Blockers
 
@@ -183,28 +183,49 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ### Frontend quality
 
-- [ ] Fix the 77 ESLint errors, mostly `no-explicit-any`, and add lint and
+- [x] Fix the 77 ESLint errors, mostly `no-explicit-any`, and add lint and
   build to CI.
-- [ ] Remove dead code: the commented-out `RequireUserLayout` and
+  *Done: `npm run lint` reports 0 errors. `.github/workflows/frontend.yml`
+  runs lint and build on every PR and on `main`. Seven
+  `react-hooks/exhaustive-deps` warnings remain; fixing them changes when
+  effects re-run, so each needs a manual check. The
+  `react-refresh/only-export-components` rule is off for `src/context` and
+  `src/components/ui`, which export hooks next to their providers.*
+- [x] Remove dead code: the commented-out `RequireUserLayout` and
   `/changeuser` redirects in `App.tsx` (the `/changeuser` route doesn't
   exist, and `BodyGame.tsx` still navigates to it), the empty
   `hooks/useGestureNavigation.ts`, the unused imports of `BodyGame`,
   `BodyGameMenu` and `TutorialBody`, and the
   `/TutorialFinger` / `/TutorialBody` links whose capitalization doesn't
   match the routes.
-- [ ] Decide on body mode: finish it or remove it, along with
+  *Done, along with other unused imports, variables and state (for example
+  the leaderboard that `FingerGame` loaded but never showed).
+  `FingerGameMenu` and `TutorialFinger` are still only reachable from each
+  other or by URL.*
+- [x] Decide on body mode: finish it or remove it, along with
   `usePoseDetection`, `poseDrawing`, `personTracking` and the TensorFlow
   dependencies.
-  *Partly done: the TensorFlow code and dependencies are gone. `BodyGameMenu`,
-  `TutorialBody` and the backend `body_*` leaderboards remain.*
-- [ ] Use the API base URL consistently. `gestureApi.ts` hard-codes `/api`,
+  *Done: removed. `BodyGameMenu` and `TutorialBody` were deleted, and the
+  backend only accepts `game_type: "finger"`, so
+  `/api/leaderboard/body/...` now returns 422.*
+- [x] Use the API base URL consistently. `gestureApi.ts` hard-codes `/api`,
   while `leaderboardApi.ts` reads `VITE_API_BASE_URL`. The frontend
   Dockerfile sets `REACT_APP_API_URL`, which Vite ignores.
-- [ ] Split `GameLive.tsx` (2.2k lines, with the whole game loop in one
+  *Done: all clients import `API_BASE_URL` from `src/apiConfig.ts`. The
+  Dockerfile takes `VITE_API_BASE_URL` as a build argument (default `/api`).*
+- [x] Split `GameLive.tsx` (2.2k lines, with the whole game loop in one
   `useEffect`) into smaller modules.
-- [ ] Set the page title (it's still "VIScon Hackathon Template") and add
+  *Done: `components/pages/gameLive/` holds the page (about 800 lines), CSS,
+  hand-to-player assignment, targets, coins, drawing and the post-game modal.
+  The loop is still one effect that updates the DOM through refs. The unused
+  YouTube audio, high-five detection and debug hooks were removed. Not tested
+  with a camera yet.*
+- [x] Set the page title (it's still "VIScon Hackathon Template") and add
   meta tags and a proper favicon.
-- [ ] Rewrite or delete `frontend/README.md`, which is still the template
+  *Done: title, description, theme color and Open Graph tags. The VIScon
+  logo was replaced with a hand icon (`favicon.svg`, `favicon.ico`,
+  `apple-touch-icon.png`).*
+- [x] Rewrite or delete `frontend/README.md`, which is still the template
   text.
 
 ## 🟡 Housekeeping
@@ -212,16 +233,19 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 - [ ] Delete or move `other/index.html` (prototype), `Vision/vision.py`
   (unused experiment), `todo_tom.txt`, and the root `package-lock.json`
   (91 bytes, no `package.json`).
-- [ ] Use `npm ci` instead of `npm install` in the frontend Dockerfile so
+- [x] Use `npm ci` instead of `npm install` in the frontend Dockerfile so
   builds are reproducible.
+  *Done; a `.dockerignore` also keeps local `node_modules` and `dist` out of
+  the build context.*
 - [ ] Add a `LICENSE` and a privacy note. The webcam is processed only in the
   browser, which should be stated clearly to users.
 - [ ] Add CI (GitHub Actions) that runs lint, type-check, backend tests and
   the Docker build.
   *Docker build done in #1: `.github/workflows/docker-release.yml` builds
   both images on every PR, publishes them to GHCR on `main` and `v*` tags,
-  and creates a GitHub Release for tags. Lint, type-check and backend tests
-  are still missing.*
+  and creates a GitHub Release for tags.* *Frontend lint, type-check and
+  build added in `.github/workflows/frontend.yml`. Backend tests are still
+  missing.*
 - [x] Document deployment from the published images (README "Deployment"
   section, #1).
 - [ ] Set up monitoring and logging for the deployed instance: Traefik access

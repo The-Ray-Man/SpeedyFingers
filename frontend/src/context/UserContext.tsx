@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+import { API_BASE_URL } from "@/apiConfig";
 
 export interface UserInfo {
   id: string;

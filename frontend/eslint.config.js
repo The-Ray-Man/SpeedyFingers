@@ -20,4 +20,13 @@ export default tseslint.config([
       globals: globals.browser,
     },
   },
+  {
+    // Context modules export a provider together with its hook, and the
+    // Chakra UI snippets in components/ui export helpers next to components.
+    // Fast refresh then reloads the whole module instead of patching it.
+    files: ["src/context/**/*.{ts,tsx}", "src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 ]);

@@ -173,7 +173,9 @@ const VideoOverlay: React.FC<{ video: HTMLVideoElement }> = ({ video }) => {
     return () => {
       try {
         container.removeChild(video);
-      } catch {}
+      } catch {
+        // Already removed from the page
+      }
     };
   }, [container, video]);
 

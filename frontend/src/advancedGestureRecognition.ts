@@ -219,7 +219,6 @@ export function getCurrentHandPose(landmarks: NormalizedLandmarkList): HandPose 
  */
 export function comparePoses(currentPose: HandPose, referencePose: HandPose): number {
   let totalScore = 0;
-  let totalWeight = 0;
 
   // Determine which fingers to consider based on reference pose
   const considerThumb = referencePose.thumbRelevant;
@@ -232,20 +231,15 @@ export function comparePoses(currentPose: HandPose, referencePose: HandPose): nu
   // Compare each finger's extension state
   if (considerThumb) {
     totalScore += currentPose.thumbExtended === referencePose.thumbExtended ? extensionScorePerFinger : 0;
-    totalWeight += extensionScorePerFinger;
   }
   
   totalScore += currentPose.indexExtended === referencePose.indexExtended ? extensionScorePerFinger : 0;
-  totalWeight += extensionScorePerFinger;
   
   totalScore += currentPose.middleExtended === referencePose.middleExtended ? extensionScorePerFinger : 0;
-  totalWeight += extensionScorePerFinger;
   
   totalScore += currentPose.ringExtended === referencePose.ringExtended ? extensionScorePerFinger : 0;
-  totalWeight += extensionScorePerFinger;
   
   totalScore += currentPose.pinkyExtended === referencePose.pinkyExtended ? extensionScorePerFinger : 0;
-  totalWeight += extensionScorePerFinger;
 
   // Angle comparison (continuous: how similar the angles are)
   const angleWeight = 0.4; // 40% of total score
@@ -261,20 +255,15 @@ export function comparePoses(currentPose: HandPose, referencePose: HandPose): nu
 
   if (considerThumb) {
     totalScore += angleSimilarity(currentPose.thumbAngle, referencePose.thumbAngle) * angleScorePerFinger;
-    totalWeight += angleScorePerFinger;
   }
   
   totalScore += angleSimilarity(currentPose.indexAngle, referencePose.indexAngle) * angleScorePerFinger;
-  totalWeight += angleScorePerFinger;
   
   totalScore += angleSimilarity(currentPose.middleAngle, referencePose.middleAngle) * angleScorePerFinger;
-  totalWeight += angleScorePerFinger;
   
   totalScore += angleSimilarity(currentPose.ringAngle, referencePose.ringAngle) * angleScorePerFinger;
-  totalWeight += angleScorePerFinger;
   
   totalScore += angleSimilarity(currentPose.pinkyAngle, referencePose.pinkyAngle) * angleScorePerFinger;
-  totalWeight += angleScorePerFinger;
 
   return totalScore;
 }

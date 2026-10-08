@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame } from "../mediapipe";
+import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame, type NormalizedLandmark } from "../mediapipe";
 import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition, matchGesture } from "../gestureApi";
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
-import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { Toaster, toaster } from "@/components/ui/toaster";
-import { Tooltip } from "@/components/ui/tooltip";
 import MusicButton from "@/components/design/MusicButton";
-import { Flex, Stack, VStack } from "@chakra-ui/react";
+import { Flex, Stack } from "@chakra-ui/react";
 import { useUser } from "@/context/UserContext";
 
 const DEV_MODE_STYLES = `
@@ -557,7 +555,7 @@ const DevMode: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handsRef = useRef<HandTracker | null>(null);
-  const currentLandmarksRef = useRef<any>(null);
+  const currentLandmarksRef = useRef<NormalizedLandmark[][] | null>(null);
   const selectedSymbolRef = useRef<string | null>(null);
   const selectedGestureDetailRef = useRef<GestureDefinition | null>(null);
   const lastMatchTimeRef = useRef<number>(0);
@@ -675,7 +673,7 @@ const DevMode: React.FC = () => {
               landmarks: landmarksArray
             });
             setLiveSimilarity(matchResponse.similarity || 0);
-          } catch (error) {
+          } catch {
             setLiveSimilarity(0);
           }
         }
@@ -834,7 +832,7 @@ const DevMode: React.FC = () => {
     }
 
     try {
-      const landmarksArray = currentLandmarksRef.current.map((hand: any) => landmarksToArray(hand));
+      const landmarksArray = currentLandmarksRef.current.map(hand => landmarksToArray(hand));
       const threshold = selectedGestureDetail?.threshold || newSymbolThreshold / 100;
 
       const response = await saveGesture({
