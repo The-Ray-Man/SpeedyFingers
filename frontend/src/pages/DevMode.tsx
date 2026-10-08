@@ -9,8 +9,7 @@ import { Toaster, toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import MusicButton from "@/components/design/MusicButton";
 import { Flex, Stack, VStack } from "@chakra-ui/react";
-
-const ADMIN_PASSWORD = "admin123";
+import { useUser } from "@/context/UserContext";
 
 const DEV_MODE_STYLES = `
 .dev-mode-page {
@@ -551,8 +550,10 @@ const DevMode: React.FC = () => {
   const [newSymbolThreshold, setNewSymbolThreshold] = useState(55);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [manageThreshold, setManageThreshold] = useState(55);
-  const [adminMode, setAdminMode] = useState(false);
-  const [adminCodeInput, setAdminCodeInput] = useState("");
+  // Gesture management is authorized server-side for trusted user ids;
+  // the client only mirrors that to enable/disable the controls.
+  const { user, loading: userLoading } = useUser();
+  const adminMode = !!user?.canManageGestures;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -628,34 +629,6 @@ const DevMode: React.FC = () => {
     } catch (error) {
       console.error("Failed to load gestures:", error);
     }
-  };
-
-  const handleAdminCodeSubmit = () => {
-    if (adminCodeInput === ADMIN_PASSWORD) {
-      setAdminMode(true);
-      setAdminCodeInput("");
-      toaster.create({
-        title: "Admin Mode Activated",
-        description: "You now have full editing access.",
-        type: "success"
-      });
-    } else {
-      toaster.create({
-        title: "Access Denied",
-        description: "Incorrect admin code.",
-        type: "error"
-      });
-      setAdminCodeInput("");
-    }
-  };
-
-  const handleAdminLogout = () => {
-    setAdminMode(false);
-    toaster.create({
-      title: "Admin Mode Deactivated",
-      description: "Editing functions disabled.",
-      type: "info"
-    });
   };
 
   const onHandsResults = async (results: Results) => {
@@ -1196,7 +1169,7 @@ const DevMode: React.FC = () => {
                   disabled={!adminMode || !cameraActive || !handDetected || countdown !== null}
                   title={
                     !adminMode
-                      ? "Admin mode required"
+                      ? "Not allowed to edit gestures"
                       : !cameraActive
                       ? "Start the camera first"
                       : !handDetected
@@ -1216,39 +1189,16 @@ const DevMode: React.FC = () => {
 
           <aside className="control-column">
             <div className="dev-card">
-              <div className="panel-title">Admin Code: </div>
-              {adminMode ? (
-                <div className="admin-active">
-                  <p className="hint-text">Admin controls unlocked.</p>
-                  <button className="button outline" onClick={handleAdminLogout}>
-                    Disable Admin Mode
-                  </button>
-                </div>
+              <div className="panel-title">Access</div>
+              {userLoading ? (
+                <p className="hint-text">Checking permissions…</p>
+              ) : adminMode ? (
+                <p className="hint-text">Signed in as {user?.username}. Gesture editing enabled.</p>
               ) : (
-                <form
-                  className="form-field"
-                  onSubmit={event => {
-                    event.preventDefault();
-                    handleAdminCodeSubmit();
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "row", gap: "0.6rem" }}>
-
-                    <input
-                      id="admin-code"
-                      type="password"
-                      className="text-input"
-                      value={adminCodeInput}
-                      onChange={event => setAdminCodeInput(event.target.value)}
-                      placeholder="Enter admin code"
-                    />
-                    <div className="button-row">
-                      <button className="button" type="submit" disabled={!adminCodeInput.trim()}>
-                        Unlock
-                      </button>
-                    </div>
-                  </div>
-                </form>
+                <p className="hint-text">
+                  {user ? `Signed in as ${user.username}. ` : ""}
+                  You are not allowed to edit gestures.
+                </p>
               )}
             </div>
 
@@ -1262,7 +1212,7 @@ const DevMode: React.FC = () => {
                   className="button"
                   onClick={() => setIsAddingNew(true)}
                   disabled={!adminMode}
-                  title={!adminMode ? "Admin mode required" : undefined}
+                  title={!adminMode ? "Not allowed to edit gestures" : undefined}
                 >
                   + Add
                 </button>
@@ -1298,7 +1248,7 @@ const DevMode: React.FC = () => {
                             className="button outline sm"
                             onClick={() => handleOpenManage(gesture.symbol)}
                             disabled={!adminMode}
-                            title={!adminMode ? "Admin mode required" : undefined}
+                            title={!adminMode ? "Not allowed to edit gestures" : undefined}
                           >
                             Manage
                           </button>

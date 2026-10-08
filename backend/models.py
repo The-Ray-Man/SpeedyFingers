@@ -4,14 +4,15 @@ from pydantic import BaseModel, Field
 
 
 class LeaderboardEntry(BaseModel):
-    name: str  # Player name or Team name
+    user_id: str  # Unique key, taken from the trusted X-User-Id header
+    name: str  # Display name, taken from the trusted X-User-Name header
     score: int
     symbols: int  # Number of symbols completed
     timestamp: datetime = datetime.now()
 
 
 class ScoreSubmission(BaseModel):
-    name: str  # Player name or Team name
+    # The player's identity is taken from the trusted proxy headers, not the body
     score: int
     symbols: int
     game_mode: str  # "single" or "multi"

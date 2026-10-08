@@ -14,7 +14,7 @@ The project started from the VIScon Hackathon template.
 | **Gesture Battle** (multiplayer) | `/live_game` | Two players share one camera, one on each side of the frame. Each player is shown a target gesture and scores by matching it. Coins appear on screen and can be grabbed. Show 👍👍 or press Start to begin. |
 | **Single Player Challenge** | `/game-1` | Copy hand shapes for symbols (including LaTeX symbols) recorded in Dev Mode. The variants are fetched from the backend and matched in the browser (`utils/localGestureMatcher.ts`). |
 | **Tutorial** | `/tutorial`, `/tutorialFinger` | Introduces the controls. |
-| **Dev Mode** | `/dev-mode` | Record, test, and delete the gesture variants for each symbol and tune each symbol's match threshold. |
+| **Dev Mode** | `/dev-mode` | Record, test, and delete the gesture variants for each symbol and tune each symbol's match threshold. Only [trusted users](#authentication) can make changes. |
 
 Menus can also be controlled with gestures. For example, 🤟 switches between
 options and 👎 selects one.
@@ -42,6 +42,8 @@ exists in the code, but its routes are switched off in `frontend/src/App.tsx`.
   then turns their average distance into a similarity score with
   `exp(-5·d)`.
 - **Proxy**: Traefik, configured with Docker labels in `docker-compose.yml`.
+  In production, requests arrive through an upstream trusted proxy that sets
+  the user identity headers (see [Authentication](#authentication)).
 
 Other folders:
 
@@ -119,7 +121,8 @@ anything.
    ```
 
    Edit `.env` if you need to change any values. The file has to exist, even
-   if you leave it as is.
+   if you leave it as is. Set `TRUSTED_USER_IDS` to the user ids that may
+   edit gestures (see [Authentication](#authentication)).
 
 4. **(Optional) Pin a release.** By default the compose file uses `latest`,
    which tracks `main`. To run a fixed version, replace `:latest` with the
@@ -163,8 +166,17 @@ removed with `docker image prune`.
 Leaderboards and gestures are stored in the named volume `backend-data`
 (mounted at `/data` in the backend container), so they survive updates and
 container rebuilds. On the very first start, the backend copies the committed
-files from `backend/data/` into the empty volume; after that it never
-overwrites them.
+gestures from `backend/data/gestures.json` into the empty volume; after that it
+never overwrites them. Leaderboards start empty.
+
+Leaderboard entries are keyed by user id. Score files written by older
+versions (entries without `user_id`) are not migrated. Delete them from the
+volume when upgrading:
+
+```bash
+docker compose exec backend sh -c 'rm -f /data/*_player.json'
+docker compose restart backend
+```
 
 Back up the data:
 
@@ -196,6 +208,10 @@ pip install -r requirements.txt
 python3 app.py                 # http://localhost:8000/api/docs
 ```
 
+There is no proxy locally, so start the backend with
+`USE_MOCK_AUTHENTICATION=true TRUSTED_USER_IDS=mock-user python3 app.py` to be
+logged in as a trusted mock user (see [Authentication](#authentication)).
+
 ### Frontend
 
 ```bash
@@ -226,18 +242,41 @@ All routes are under `/api`.
 | :----- | :--- | :---------- |
 | `GET` | `/api/health` | Health check |
 | `GET` | `/api/leaderboard/{finger\|body}/{single\|multi}` | Top 10 for a game type and mode |
-| `GET` | `/api/leaderboard/single`, `/api/leaderboard/multi` | Legacy routes that return the finger leaderboards |
-| `POST` | `/api/score/submit` | Submit `{name, score, symbols, game_mode, game_type}`. The best score per name is kept. |
+| `GET` | `/api/me` | The current user: `{id, name, canManageGestures}` |
+| `POST` | `/api/score/submit` | Submit `{score, symbols, game_mode, game_type}` for the current user. The best score per user id is kept. |
 | `GET` | `/api/gestures` | List symbols and their variant counts |
 | `GET` | `/api/gestures/{symbol}` | All variants of one symbol |
 | `GET` | `/api/gestures/random/get` | A random symbol with its variants |
-| `POST` | `/api/gestures` | Add a recorded variant to a symbol |
+| `POST` | `/api/gestures` | Add a recorded variant to a symbol (trusted users) |
 | `POST` | `/api/gestures/match` | Compare landmarks with a symbol's variants |
-| `PATCH` | `/api/gestures/{symbol}/threshold?threshold=0.6` | Set a symbol's match threshold |
-| `DELETE` | `/api/gestures/{symbol}` | Delete a symbol |
-| `DELETE` | `/api/gestures/{symbol}/{variant_id}` | Delete one variant |
+| `PATCH` | `/api/gestures/{symbol}/threshold?threshold=0.6` | Set a symbol's match threshold (trusted users) |
+| `DELETE` | `/api/gestures/{symbol}` | Delete a symbol (trusted users) |
+| `DELETE` | `/api/gestures/{symbol}/{variant_id}` | Delete one variant (trusted users) |
 
-None of these endpoints require authentication.
+### Authentication
+
+The backend assumes that every request has passed through a trusted proxy,
+which sets these headers:
+
+- `X-User-Id`: unique identifier of the user. Leaderboard entries are keyed
+  by it.
+- `X-User-Name`: display name, shown on the leaderboard.
+
+The backend never takes the player's identity from the request body.
+`/api/me` and `/api/score/submit` return `401` without `X-User-Id`. The
+backend must therefore only be reachable through that proxy, otherwise
+clients could set the headers themselves.
+
+Adding, deleting and re-thresholding gestures is limited to trusted users.
+List their ids, comma-separated, in `.env`:
+
+```bash
+TRUSTED_USER_IDS=user-id-1,user-id-2
+```
+
+Other users get `403`. For local development without the proxy, set
+`USE_MOCK_AUTHENTICATION=true`: requests without `X-User-Id` are then treated
+as the user `mock-user` (add it to `TRUSTED_USER_IDS` to edit gestures).
 
 ## Project status
 

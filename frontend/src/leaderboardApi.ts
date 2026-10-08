@@ -2,7 +2,7 @@
  * API Client for VIS Minigame Leaderboard Backend
  * 
  * Usage:
- * import { submitScore, getSinglePlayerLeaderboard, getMultiPlayerLeaderboard } from './leaderboardApi';
+ * import { submitScore, getGameSinglePlayerLeaderboard, getGameMultiPlayerLeaderboard } from './leaderboardApi';
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -15,8 +15,8 @@ export type LeaderboardEntry = {
   symbols: number;
 };
 
+// The player is identified by the backend from the trusted proxy headers
 export type ScoreSubmission = {
-  name: string;
   score: number;
   symbols: number;
   gameMode: "single" | "multi";
@@ -35,7 +35,6 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      name: submission.name,
       score: submission.score,
       symbols: submission.symbols,
       game_mode: submission.gameMode,
@@ -49,34 +48,6 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
 
   const result = await response.json();
   return result.leaderboard;
-}
-
-/**
- * Get the single player leaderboard (legacy - defaults to finger game)
- * @returns Array of single player leaderboard entries
- */
-export async function getSinglePlayerLeaderboard(): Promise<LeaderboardEntry[]> {
-  const response = await fetch(`${API_BASE_URL}/leaderboard/single`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch single player leaderboard: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Get the multi player leaderboard (legacy - defaults to finger game)
- * @returns Array of multi player leaderboard entries
- */
-export async function getMultiPlayerLeaderboard(): Promise<LeaderboardEntry[]> {
-  const response = await fetch(`${API_BASE_URL}/leaderboard/multi`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch multi player leaderboard: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 /**

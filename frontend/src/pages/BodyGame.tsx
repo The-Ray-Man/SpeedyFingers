@@ -275,7 +275,6 @@ const BodyGame: React.FC = () => {
 
         try {
             await submitScore({
-                name: user.username,
                 score: currentShapeIndex,
                 symbols: currentShapeIndex,
                 gameMode: 'single',
