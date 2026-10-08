@@ -12,10 +12,7 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
-import { Hands, type Results } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import { HAND_CONNECTIONS } from "@mediapipe/hands";
+import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame } from "../mediapipe";
 import { getRandomGesture, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray } from "../advancedGestureRecognition";
 import { matchGestureLocally } from "../utils/localGestureMatcher";
@@ -68,8 +65,8 @@ const PlayMode: React.FC = () => {
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const handsRef = useRef<Hands | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
+  const handsRef = useRef<HandTracker | null>(null);
+  const cameraRef = useRef<MediaStream | null>(null);
   const gameTimerRef = useRef<number | null>(null);
   const autoReturnTimerRef = useRef<number | null>(null);
   const gracePeriodTimerRef = useRef<number | null>(null);
@@ -151,48 +148,37 @@ const PlayMode: React.FC = () => {
     return pointingDown && !idx && !mid;
   };
 
-  // Initialize MediaPipe Hands
+  // Initialize MediaPipe hand tracking
   useEffect(() => {
+    let disposed = false;
+
     const initializeHands = async () => {
       try {
-        console.log("Initializing MediaPipe Hands...");
-        
-        const hands = new Hands({
-          locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-          },
-        });
-
-        hands.setOptions({
-          maxNumHands: 2,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.3,
+        const hands = await HandTracker.create({
+          numHands: 2,
+          minHandDetectionConfidence: 0.3,
+          minHandPresenceConfidence: 0.3,
           minTrackingConfidence: 0.3,
         });
-
-        hands.onResults(onHandsResults);
-        
+        if (disposed) {
+          hands.close();
+          return;
+        }
         handsRef.current = hands;
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         setIsModelReady(true);
-        console.log("MediaPipe Hands initialized successfully");
       } catch (error) {
-        console.error("Failed to initialize MediaPipe Hands:", error);
-        setCameraError("Failed to load hand detection model. Please refresh the page.");
+        if (!disposed) setCameraError(describeMediaError(error));
       }
     };
 
     initializeHands();
 
     return () => {
-      if (cameraRef.current) {
-        cameraRef.current.stop();
-      }
-      if (handsRef.current) {
-        handsRef.current.close();
-      }
+      disposed = true;
+      cameraRef.current?.getTracks().forEach(track => track.stop());
+      cameraRef.current = null;
+      handsRef.current?.close();
+      handsRef.current = null;
     };
   }, []);
 
@@ -267,57 +253,26 @@ const PlayMode: React.FC = () => {
         try {
           
           
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              width: 640, 
-              height: 480 
-            } 
-          });
+          const stream = await openCamera({ width: 640, height: 480 });
           
-          if (!videoRef.current) {
+          if (!videoRef.current || !handsRef.current) {
+            stream.getTracks().forEach(track => track.stop());
             throw new Error("Video element not initialized");
           }
           
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
 
-          const camera = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (handsRef.current && videoRef.current) {
-                try {
-                  await handsRef.current.send({ image: videoRef.current });
-                } catch (err) {
-                  console.error("Error sending frame to hands:", err);
-                }
-              }
-            },
-            width: 640,
-            height: 480,
+          cameraRef.current = stream;
+          handsRef.current.start(videoRef.current, onHandsResults, (error) => {
+            setCameraError(describeMediaError(error));
           });
-
-          await camera.start();
-          cameraRef.current = camera;
           setCameraReady(true);
           
           console.log("Camera ready - waiting for thumbs up!");
         } catch (error) {
           console.error("Failed to start camera:", error);
-          
-          let errorMessage = "Failed to access camera. ";
-          
-          if (error instanceof Error) {
-            if (error.name === "NotAllowedError") {
-              errorMessage += "Please grant camera permissions and try again.";
-            } else if (error.name === "NotFoundError") {
-              errorMessage += "No camera found on this device.";
-            } else if (error.name === "NotReadableError") {
-              errorMessage += "Camera is already in use by another application.";
-            } else {
-              errorMessage += error.message;
-            }
-          }
-          
-          setCameraError(errorMessage);
+          setCameraError(describeMediaError(error));
         }
       };
 
@@ -326,7 +281,7 @@ const PlayMode: React.FC = () => {
   }, [isModelReady, cameraReady, gameStarted, gameOver]);
 
   // Handle hand detection results
-  const onHandsResults = async (results: Results) => {
+  const onHandsResults = async (results: HandFrame) => {
     if (!canvasRef.current) return;
 
     const canvasCtx = canvasRef.current.getContext("2d");
@@ -353,17 +308,12 @@ const PlayMode: React.FC = () => {
       setHandDetected(true);
       currentLandmarksRef.current = results.multiHandLandmarks;
       
-      for (const landmarks of results.multiHandLandmarks) {
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-          color: "#00FF00",
-          lineWidth: 2,
-        });
-        drawLandmarks(canvasCtx, landmarks, {
-          color: "#FF0000",
-          lineWidth: 1,
-          radius: 3,
-        });
-      }
+      drawHands(
+        canvasCtx,
+        results.multiHandLandmarks,
+        { color: "#00FF00", lineWidth: 2 },
+        { color: "#FF0000", lineWidth: 1, radius: 3 }
+      );
 
       // Check for thumbs up gesture if waiting to start game
       if (waitingForThumbsUpRef.current && !isGameActive && !isGameOver) {
@@ -668,7 +618,7 @@ const PlayMode: React.FC = () => {
             <Heading size="3xl" fontWeight="extrabold" textShadow={headingGlow}>
               Solo Gesture Arena
             </Heading>
-            {waitingForThumbsUp && !cameraReady ? (
+            {waitingForThumbsUp && !cameraReady && !cameraError ? (
               <Text fontSize="lg" color={mutedText}>
                 Loading camera...
               </Text>
