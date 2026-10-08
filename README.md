@@ -47,13 +47,6 @@ and has been removed.
   In production, requests arrive through an upstream trusted proxy that sets
   the user identity headers (see [Authentication](#authentication)).
 
-Other folders:
-
-- `Vision/vision.py`: experimental script that renders LaTeX symbols to
-  bitmaps. The app doesn't use it.
-- `other/index.html`: standalone prototype of the co-op hand-recognition game.
-  The app doesn't use it.
-
 ## Quick start (Docker)
 
 ```bash
