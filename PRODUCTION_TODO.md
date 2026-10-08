@@ -56,8 +56,9 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   `getUserMedia` (the webcam) on non-secure origins, so **the game can't run
   on a public host without TLS.** Add a `websecure` entrypoint with Let's
   Encrypt (ACME) and redirect HTTP to HTTPS.
-- [ ] Add security headers: a `Content-Security-Policy` that allows jsDelivr,
-  storage.googleapis.com, and `wasm-unsafe-eval`; HSTS; and
+- [ ] Add security headers: a `Content-Security-Policy` that allows
+  `wasm-unsafe-eval` (MediaPipe is self-hosted now, so jsDelivr and
+  storage.googleapis.com are no longer needed); HSTS; and
   `Permissions-Policy: camera=(self)`. `X-XSS-Protection` in `nginx.conf` is
   obsolete and can be removed.
 
@@ -103,19 +104,29 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ### Reliability and external dependencies
 
-- [ ] **Runtime CDN dependencies.** MediaPipe WASM and models are loaded from
+- [x] **Runtime CDN dependencies.** MediaPipe WASM and models are loaded from
   jsDelivr and storage.googleapis.com, and `GestureService.ts` uses
   `tasks-vision@latest`, so an upstream release can break the game without
   any change on your side. The project also uses **two versions at once**:
   `0.10.0` via a CDN import in `GameLive.tsx`, and `@latest` plus the npm
   package `^0.10.22-rc`. Pin one version, preferably the npm package, and
   self-host the WASM and `.task` files in `public/`.
-- [ ] Remove unused or duplicated ML dependencies: the legacy
+  *Done: everything goes through `frontend/src/mediapipe.ts` and the npm
+  package pinned to exactly `0.10.22-rc.20250304`. A Vite plugin copies its
+  WASM to `public/mediapipe/wasm` on every dev/build, and the `.task`
+  models are committed under `public/mediapipe/models`.*
+- [x] Remove unused or duplicated ML dependencies: the legacy
   `@mediapipe/hands`, `camera_utils` and `drawing_utils`, and
   `@tensorflow/tfjs` and `pose-detection`, which only the disabled body mode
   uses. Remove `@babel/core` and `@babel/traverse` from runtime
   `dependencies`.
-- [ ] **The bundle is 3 MB (609 KB gzipped) in a single chunk.** Lazy-load
+  *Done: DevMode and FingerGame now use the tasks-vision `HandLandmarker`;
+  the TensorFlow-based body-mode files (`BodyGame`, `VideoComponent`,
+  `usePoseDetection`, `poseDrawing`, `personTracking`, `collisionDetection`,
+  `poseHelpers`, `ShapeOverlay`, `ProgressBar`) were deleted. The bundle
+  dropped from 3 MB to 0.9 MB (267 KB gzipped).*
+- [ ] **The bundle is 3 MB (609 KB gzipped) in a single chunk.** (Now
+  0.9 MB / 267 KB gzipped after removing TensorFlow.) Lazy-load
   routes with `React.lazy` (DevMode, GameLive and FingerGame are each 1–2k
   lines) and the ML libraries.
 - [ ] The images in `public/` are large (`pic1–4.png` and `Pic2.png` total
@@ -123,10 +134,15 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   `background_music_tmp.mp3` should be compressed and renamed.
 - [ ] Check licensing for the background music and images before a public
   release.
-- [ ] Add a Docker `healthcheck` that calls `/api/health`.
-- [ ] Error handling: if the camera is denied, the CDN is unavailable or the
+- [x] Add a Docker `healthcheck` that calls `/api/health`.
+  *Done as a `HEALTHCHECK` in `backend/Dockerfile`, so it also applies to
+  the published image.*
+- [x] Error handling: if the camera is denied, the CDN is unavailable or the
   model fails to load, most code paths only log to the console. Show the
   user a clear message.
+  *Done: `describeMediaError` maps camera and model failures to a message
+  shown in GameLive (with a Retry button), FingerGame, DevMode and a banner
+  for gesture navigation.*
 - [ ] Check browser support: Safari and iOS behavior, mobile layout,
   behavior without a camera, and the autoplay policy for the music.
 
@@ -168,6 +184,8 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 - [ ] Decide on body mode: finish it or remove it, along with
   `usePoseDetection`, `poseDrawing`, `personTracking` and the TensorFlow
   dependencies.
+  *Partly done: the TensorFlow code and dependencies are gone. `BodyGameMenu`,
+  `TutorialBody` and the backend `body_*` leaderboards remain.*
 - [ ] Use the API base URL consistently. `gestureApi.ts` hard-codes `/api`,
   while `leaderboardApi.ts` reads `VITE_API_BASE_URL`. The frontend
   Dockerfile sets `REACT_APP_API_URL`, which Vite ignores.

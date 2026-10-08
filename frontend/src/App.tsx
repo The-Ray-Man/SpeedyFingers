@@ -3,7 +3,6 @@ import Home from "@/pages/Home";
 import TutorialFinger from "@/pages/TutorialFinger";
 import TutorialBody from "@/pages/TutorialBody";
 import FingerGame from "@/pages/FingerGame";
-import BodyGame from "./pages/BodyGame";
 import FingerGameMenu from "./pages/FingerGameMenu";
 import BodyGameMenu from "./pages/BodyGameMenu";
 import { MusicProvider } from "./context/MusicContext";
@@ -57,7 +56,6 @@ const App = () => (
           <Route path="/tutorialFinger" element={<TutorialFinger />} />
           {/* <Route path="/tutorialBody" element={<TutorialBody />} /> */}
           <Route path="/game-1" element={<FingerGame />} />
-          {/* <Route path="/game-2" element={<BodyGame />} /> */}
           <Route path="/live_game" element={<GameLive />} />
           <Route path="/dev-mode" element={<DevMode />} />
           <Route path="/tutorial" element={<Tutorial />} />

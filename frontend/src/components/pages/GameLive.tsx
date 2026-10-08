@@ -4,6 +4,14 @@ import { submitScore } from "@/leaderboardApi";
 import { useUser } from "@/context/UserContext";
 import { useRewardSound } from "../../context/rewardSoundContext";
 import MusicButton from "../design/MusicButton";
+import {
+  DrawingUtils,
+  HandLandmarker,
+  createGestureRecognizer,
+  describeMediaError,
+  openCamera,
+  type GestureRecognizer
+} from "@/mediapipe";
 
 const GAME_LIVE_STYLES = `
 .game-live-page {
@@ -754,10 +762,6 @@ const GameLive = () => {
     }
 
     async function ensureTrackingReady() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera API is not available in this browser.");
-      }
-
       if (!videoRunning) {
         await initializeCamera();
         videoRunning = true;
@@ -768,7 +772,7 @@ const GameLive = () => {
       }
 
       if (!drawingUtils) {
-        drawingUtils = new DrawingUtilsRef(canvasCtx);
+        drawingUtils = new DrawingUtils(canvasCtx);
       }
 
       if (!animationFrameId) {
@@ -820,8 +824,8 @@ const GameLive = () => {
     targetDisplays[2].prompt.classList.remove("satisfied");
     enterWaitingState(READY_PROMPT_INITIAL);
 
-    let gestureRecognizer: any;
-    let drawingUtils: any;
+    let gestureRecognizer: GestureRecognizer | null = null;
+    let drawingUtils: DrawingUtils | null = null;
     let videoRunning = false;
     let lastVideoTime = -1;
     let animationFrameId = 0;
@@ -871,21 +875,6 @@ const GameLive = () => {
     let ytReady = false;
     const pendingAudioActions: Array<() => void> = [];
 
-    let HandLandmarkerRef: any;
-    let FilesetResolverRef: any;
-    let GestureRecognizerRef: any;
-    let DrawingUtilsRef: any;
-
-    const visionModulePromise = import(
-      /* @vite-ignore */ "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0?module"
-    ).then(mod => {
-      HandLandmarkerRef = mod.HandLandmarker;
-      FilesetResolverRef = mod.FilesetResolver;
-      GestureRecognizerRef = mod.GestureRecognizer;
-      DrawingUtilsRef = mod.DrawingUtils;
-      return mod;
-    });
-
 
     if (resetButton) {
       resetButton.addEventListener("click", handleResetClick);
@@ -913,9 +902,9 @@ const GameLive = () => {
         updateStatusLine("Press Start or show 👍👍 to begin.");
       } catch (error) {
         console.error("[GameLive] Failed to prepare camera:", error);
-        cameraReady = false;
-        enterWaitingState(READY_PROMPT_INITIAL);
-        updateStatusLine(describeCameraError(error));
+        if (!disposed) {
+          showTrackingError(error);
+        }
       }
     };
 
@@ -946,23 +935,13 @@ const GameLive = () => {
 
     let disposed = false;
 
-    const describeCameraError = (error: unknown) => {
-      let message = "Failed to access camera. ";
-      if (error instanceof Error) {
-        if (error.name === "NotAllowedError") {
-          message += "Please allow camera permissions and try again.";
-        } else if (error.name === "NotFoundError") {
-          message += "No compatible camera was found.";
-        } else if (error.name === "NotReadableError") {
-          message += "Camera is currently in use by another application.";
-        } else {
-          message += error.message;
-        }
-      } else {
-        message += "Please try again.";
-      }
-      return message;
-    };
+    // Shows camera/model failures in the overlay; Start then acts as a retry
+    function showTrackingError(error: unknown) {
+      cameraReady = false;
+      const message = describeMediaError(error);
+      enterWaitingState(`⚠️ ${message}`);
+      startButton.textContent = "Retry";
+    }
 
     async function handleStartClick() {
       if (gameActive) {
@@ -983,11 +962,9 @@ const GameLive = () => {
         beginMatch();
       } catch (error) {
         console.error(error);
-        cameraReady = false;
-        const message = describeCameraError(error);
-        enterWaitingState(READY_PROMPT_INITIAL);
-        updateStatusLine(message);
-        startButton.disabled = false;
+        if (!disposed) {
+          showTrackingError(error);
+        }
       }
     }
 
@@ -1007,17 +984,10 @@ const GameLive = () => {
     }
 
     async function initializeCamera() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera API is not available in this browser.");
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: "user"
-        }
+      const stream = await openCamera({
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: "user"
       });
 
       videoElement.srcObject = stream;
@@ -1035,20 +1005,11 @@ const GameLive = () => {
     }
 
     async function initializeGestureRecognizer() {
-      await visionModulePromise;
-
-      const filesetResolver = await FilesetResolverRef.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+      // The 0.10.0 CDN build this replaces ran on the CPU delegate
+      gestureRecognizer = await createGestureRecognizer(
+        { runningMode: "VIDEO", numHands: 4 },
+        "CPU"
       );
-
-      gestureRecognizer = await GestureRecognizerRef.createFromOptions(filesetResolver, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task"
-        },
-        runningMode: "VIDEO",
-        numHands: 4
-      });
     }
 
     function predictFrame(nowInMs: number) {
@@ -1082,7 +1043,7 @@ const GameLive = () => {
       }
 
       const processedHands = results.landmarks.map((landmarks: any[], index: number) => {
-        const handedness = results.handednesses?.[index]?.[0];
+        const handedness = results.handedness?.[index]?.[0];
         const label = handedness?.categoryName || "Unknown";
         const score = handedness?.score ?? 0;
         const center = landmarks.reduce(
@@ -1147,8 +1108,8 @@ const GameLive = () => {
           easedHighlight > 0 ? mixWithHighlight(baseColor, easedHighlight) : baseColor;
         const connectorWidth = 2 + easedHighlight * 2;
 
-        if (drawingUtils && HandLandmarkerRef) {
-          drawingUtils.drawConnectors(hand.landmarks, HandLandmarkerRef.HAND_CONNECTIONS, {
+        if (drawingUtils) {
+          drawingUtils.drawConnectors(hand.landmarks, HandLandmarker.HAND_CONNECTIONS, {
             color: connectorColor,
             lineWidth: connectorWidth
           });

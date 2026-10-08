@@ -1,4 +1,6 @@
-import { type NormalizedLandmarkList } from "@mediapipe/hands";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+
+type NormalizedLandmarkList = NormalizedLandmark[];
 
 // Hand landmark indices (MediaPipe Hands provides 21 landmarks per hand)
 export const LANDMARKS = {

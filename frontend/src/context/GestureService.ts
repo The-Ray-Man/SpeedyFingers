@@ -1,9 +1,6 @@
 // src/services/GestureService.ts
-import {
-  FilesetResolver,
-  HandLandmarker,
-  type HandLandmarkerResult,
-} from "@mediapipe/tasks-vision";
+import type { HandLandmarker, HandLandmarkerResult } from "@mediapipe/tasks-vision";
+import { createHandLandmarker, openCamera } from "../mediapipe";
 
 export type HandGesture =
   | { type: "FINGERS_UP"; count: number }
@@ -29,25 +26,21 @@ export class GestureService {
   public videoElement: HTMLVideoElement | null = null;
   private running = false;
   private listeners = new Set<Listener>();
-  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
-  private modelUrl =
-    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+  /** Loads the model once. A failed load can be retried by calling again. */
+  init(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = this.load().catch((error) => {
+        this.initPromise = null;
+        throw error;
+      });
+    }
+    return this.initPromise;
+  }
 
-  private wasmBase =
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
-
-  async init() {
-    if (this.initialized) return;
-    this.initialized = true;
-
-    const vision = await FilesetResolver.forVisionTasks(this.wasmBase);
-
-    this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: this.modelUrl,
-        delegate: "GPU",
-      },
+  private async load() {
+    this.handLandmarker = await createHandLandmarker({
       runningMode: "VIDEO",
       numHands: 2,
       minHandDetectionConfidence: 0.6,
@@ -67,14 +60,10 @@ export class GestureService {
   async start() {
     
     if (this.running) return;
-    if (!this.handLandmarker) await this.init();
+    await this.init();
     if (!this.videoElement) throw new Error("video element missing after init");
-    
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480, facingMode: "user" },
-      audio: false,
-    });
+    const stream = await openCamera({ width: 640, height: 480, facingMode: "user" });
 
     this.videoElement.srcObject = stream;
 
@@ -288,7 +277,7 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
       } catch {}
       this.videoElement = null;
     }
-    this.initialized = false;
+    this.initPromise = null;
   }
 }
 

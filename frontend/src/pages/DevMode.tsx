@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera } from "@mediapipe/camera_utils";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import { HAND_CONNECTIONS, Hands, type Results } from "@mediapipe/hands";
+import { HandTracker, describeMediaError, drawHands, openCamera, type HandFrame } from "../mediapipe";
 import { saveGesture, getAllGestures, getGestureBySymbol, deleteGestureVariant, deleteGesture, updateGestureThreshold, type GestureSummary, type GestureDefinition, matchGesture } from "../gestureApi";
 import { landmarksToArray, getHandPoseDebugInfo } from "../advancedGestureRecognition";
 import { matchGestureLocally } from "../utils/localGestureMatcher";
@@ -536,6 +534,7 @@ const DEV_MODE_STYLES = `
 
 const DevMode: React.FC = () => {
   const [isModelReady, setIsModelReady] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
@@ -557,13 +556,11 @@ const DevMode: React.FC = () => {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const handsRef = useRef<Hands | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
+  const handsRef = useRef<HandTracker | null>(null);
   const currentLandmarksRef = useRef<any>(null);
   const selectedSymbolRef = useRef<string | null>(null);
   const selectedGestureDetailRef = useRef<GestureDefinition | null>(null);
   const lastMatchTimeRef = useRef<number>(0);
-  const processingRef = useRef(false);
 
   useEffect(() => {
     const styleEl = document.createElement("style");
@@ -583,28 +580,28 @@ const DevMode: React.FC = () => {
   }, [selectedGestureDetail]);
 
   useEffect(() => {
+    let disposed = false;
+
     const initializeHands = async () => {
       try {
-        const hands = new Hands({
-          locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-
-        hands.setOptions({
-          maxNumHands: 2,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.5,
+        const hands = await HandTracker.create({
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
           minTrackingConfidence: 0.5
         });
-
-        hands.onResults(onHandsResults);
+        if (disposed) {
+          hands.close();
+          return;
+        }
         handsRef.current = hands;
-        await new Promise(resolve => setTimeout(resolve, 100));
         setIsModelReady(true);
       } catch (error) {
-        console.error("Failed to initialize MediaPipe Hands:", error);
+        if (disposed) return;
+        setModelError(describeMediaError(error));
         toaster.create({
-          title: "Error",
-          description: "Failed to load hand detection model. Please refresh the page.",
+          title: "Hand tracking unavailable",
+          description: describeMediaError(error),
           type: "error"
         });
       }
@@ -613,8 +610,10 @@ const DevMode: React.FC = () => {
     initializeHands();
 
     return () => {
+      disposed = true;
       stopCamera();
       handsRef.current?.close();
+      handsRef.current = null;
     };
   }, []);
 
@@ -631,7 +630,7 @@ const DevMode: React.FC = () => {
     }
   };
 
-  const onHandsResults = async (results: Results) => {
+  const onHandsResults = async (results: HandFrame) => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
@@ -653,17 +652,13 @@ const DevMode: React.FC = () => {
       setHandDetected(true);
       currentLandmarksRef.current = results.multiHandLandmarks;
 
+      drawHands(
+        canvasCtx,
+        results.multiHandLandmarks,
+        { color: "#7bffb2", lineWidth: 2 },
+        { color: "#ffe066", lineWidth: 1, radius: 3 }
+      );
       for (const landmarks of results.multiHandLandmarks) {
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-          color: "#7bffb2",
-          lineWidth: 2
-        });
-        drawLandmarks(canvasCtx, landmarks, {
-          color: "#ffe066",
-          lineWidth: 1,
-          radius: 3
-        });
-
         setDebugInfo(getHandPoseDebugInfo(landmarks));
       }
 
@@ -708,12 +703,10 @@ const DevMode: React.FC = () => {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 960, height: 540 },
-        audio: false
-      });
+      const stream = await openCamera({ width: 960, height: 540 });
 
-      if (!videoRef.current) {
+      if (!videoRef.current || !handsRef.current) {
+        stream.getTracks().forEach(track => track.stop());
         throw new Error("Video element not initialized");
       }
 
@@ -741,29 +734,13 @@ const DevMode: React.FC = () => {
         }
       });
 
-      const camera = new Camera(videoRef.current, {
-        onFrame: async () => {
-          if (!handsRef.current || !videoRef.current) {
-            return;
-          }
-          if (processingRef.current) {
-            return;
-          }
-          processingRef.current = true;
-          try {
-            await handsRef.current.send({ image: videoRef.current });
-          } catch (err) {
-            console.error("Error sending frame:", err);
-          } finally {
-            processingRef.current = false;
-          }
-        },
-        width: 960,
-        height: 540
+      handsRef.current.start(videoRef.current, onHandsResults, error => {
+        toaster.create({
+          title: "Hand tracking error",
+          description: describeMediaError(error),
+          type: "error"
+        });
       });
-
-      await camera.start();
-      cameraRef.current = camera;
       setCameraActive(true);
       setCameraReady(true);
 
@@ -776,18 +753,14 @@ const DevMode: React.FC = () => {
       console.error("Failed to start camera:", error);
       toaster.create({
         title: "Camera Error",
-        description: "Failed to access camera.",
+        description: describeMediaError(error),
         type: "error"
       });
     }
   };
 
   const stopCamera = () => {
-    if (cameraRef.current) {
-      cameraRef.current.stop();
-      cameraRef.current = null;
-    }
-    processingRef.current = false;
+    handsRef.current?.stop();
     if (videoRef.current?.srcObject instanceof MediaStream) {
       videoRef.current.srcObject.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
@@ -1087,7 +1060,7 @@ const DevMode: React.FC = () => {
                 <canvas ref={canvasRef} />
                 <div className="stage-status">
                   <span className={`status-chip ${isModelReady ? "ok" : "warn"}`}>
-                    {isModelReady ? "Model Ready" : "Loading Model"}
+                    {isModelReady ? "Model Ready" : modelError ? "Model Failed" : "Loading Model"}
                   </span>
                   <span className={`status-chip ${cameraReady ? "ok" : "warn"}`}>
                     {cameraReady ? "Camera Ready" : "Camera Offline"}
@@ -1106,7 +1079,7 @@ const DevMode: React.FC = () => {
                     onClick={startCamera}
                     disabled={!isModelReady || cameraActive}
                   >
-                    {cameraActive ? "Camera Running" : isModelReady ? "Start Camera" : "Loading Model…"}
+                    {cameraActive ? "Camera Running" : isModelReady ? "Start Camera" : modelError ? "Model Unavailable" : "Loading Model…"}
                   </button>
                   <button className="button outline" onClick={stopCamera} disabled={!cameraActive}>
                     Stop Camera
@@ -1117,7 +1090,7 @@ const DevMode: React.FC = () => {
                     ? handDetected
                       ? "Camera streaming. Keep your hand inside the frame to preview landmarks."
                       : "Camera active. Show your hand to the lens to preview landmarks."
-                    : "Start the camera to preview and capture gestures."}
+                    : modelError ?? "Start the camera to preview and capture gestures."}
                 </p>
                 {cameraActive && (
                   <div className="debug-panel">
