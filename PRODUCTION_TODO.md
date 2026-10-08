@@ -132,18 +132,24 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ### Backend quality
 
-- [ ] `requirements.txt` lists `pydantic` twice and includes **`litellm`,
+- [x] `requirements.txt` lists `pydantic` twice and includes **`litellm`,
   which nothing uses** (a large dependency). Remove `litellm` and the stale
   `LITELLM_*` variables in `.env.sample`. Docker compose fails if `.env` is
   missing, so drop the `env_file` entry or keep `.env.sample` meaningful.
-- [ ] `models.LeaderboardEntry.timestamp = datetime.now()` is evaluated once
+  *Done: removed the duplicate `pydantic` and `litellm`. `.env.sample` now
+  only documents `TRUSTED_USER_IDS`. docker-compose no longer uses
+  `env_file`; it passes `TRUSTED_USER_IDS` through from the shell or an
+  optional `.env`, so the stack starts without one.*
+- [x] `models.LeaderboardEntry.timestamp = datetime.now()` is evaluated once
   at import time. Use `Field(default_factory=datetime.now)`.
-- [ ] Use `Literal["single", "multi"]` and `Literal["finger", "body"]` in
+- [x] Use `Literal["single", "multi"]` and `Literal["finger", "body"]` in
   `ScoreSubmission` instead of manual checks. Remove `getattr(submission,
   'game_type', 'finger')`: the field is required, so the default never
   applies.
-- [ ] `@app.on_event("startup")` is deprecated. Use a `lifespan` handler.
-- [ ] Replace `print` with `logging`.
+  *Done; the leaderboard `{game_type}` path parameter uses the same
+  `Literal`. Invalid values now return 422 instead of 400.*
+- [x] `@app.on_event("startup")` is deprecated. Use a `lifespan` handler.
+- [x] Replace `print` with `logging`.
 - [x] Remove the legacy endpoints and files (`/leaderboard/single|multi`,
   `single_player.json`, `multi_player.json`) once the frontend no longer uses
   them.

@@ -55,7 +55,6 @@ Other folders:
 ## Quick start (Docker)
 
 ```bash
-cp .env.sample .env
 docker compose up --build
 ```
 
@@ -112,17 +111,16 @@ anything.
    docker login ghcr.io -u <github-username>
    ```
 
-3. **Create a folder and download the compose file and env sample:**
+3. **Create a folder and download the compose file:**
 
    ```bash
    mkdir -p ~/speedyfingers && cd ~/speedyfingers
    curl -fsSLO https://raw.githubusercontent.com/The-Ray-Man/SpeedyFingers/main/docker-compose.yml
-   curl -fsSL https://raw.githubusercontent.com/The-Ray-Man/SpeedyFingers/main/.env.sample -o .env
    ```
 
-   Edit `.env` if you need to change any values. The file has to exist, even
-   if you leave it as is. Set `TRUSTED_USER_IDS` to the user ids that may
-   edit gestures (see [Authentication](#authentication)).
+   To let users edit gestures, create a `.env` file next to it with
+   `TRUSTED_USER_IDS` (see [Authentication](#authentication) and
+   `.env.sample`). The file is optional.
 
 4. **(Optional) Pin a release.** By default the compose file uses `latest`,
    which tracks `main`. To run a fixed version, replace `:latest` with the
@@ -268,7 +266,8 @@ backend must therefore only be reachable through that proxy, otherwise
 clients could set the headers themselves.
 
 Adding, deleting and re-thresholding gestures is limited to trusted users.
-List their ids, comma-separated, in `.env`:
+List their ids, comma-separated, in `TRUSTED_USER_IDS` (for Docker, in a
+`.env` file next to `docker-compose.yml`; see `.env.sample`):
 
 ```bash
 TRUSTED_USER_IDS=user-id-1,user-id-2
