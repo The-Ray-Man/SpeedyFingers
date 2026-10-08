@@ -1,5 +1,4 @@
 import logging
-import random
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -172,10 +171,10 @@ def get_all_gestures():
         "symbols": [
             {
                 "symbol": symbol,
-                "variantCount": len(variants),
-                "lastUpdated": max(v.createdAt for v in variants) if variants else None
+                "variantCount": variant_count,
+                "lastUpdated": last_updated
             }
-            for symbol, variants in database.list_gesture_summaries()
+            for symbol, variant_count, last_updated in database.list_gesture_summaries()
         ]
     }
 
@@ -197,23 +196,18 @@ def get_gesture_by_symbol(symbol: str):
 @app.get("/api/gestures/random/get")
 def get_random_gesture():
     """Get a random symbol and all its gesture variants."""
-    symbols = database.list_symbols()
+    definition = database.load_random_gesture()
 
-    # Select random symbol (retry if it was deleted in the meantime)
-    while symbols:
-        symbol = random.choice(symbols)
-        definition = database.load_gesture(symbol)
-        if definition is not None:
-            return {
-                "symbol": symbol,
-                "definition": definition.model_dump(mode="json")
-            }
-        symbols = database.list_symbols()
+    if definition is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No gestures available. Please record some gestures first."
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="No gestures available. Please record some gestures first."
-    )
+    return {
+        "symbol": definition.symbol,
+        "definition": definition.model_dump(mode="json")
+    }
 
 
 @app.post("/api/gestures/match")
@@ -291,10 +285,10 @@ def update_gesture_threshold(symbol: str, threshold: float, _: User = Depends(re
         detail=f"No gestures found for symbol: {symbol}"
     )
 
-    if symbol not in database.list_symbols():
-        raise not_found
-
     if threshold < 0 or threshold > 1:
+        # An unknown symbol is reported as 404 even with an invalid threshold
+        if not database.gesture_exists(symbol):
+            raise not_found
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Threshold must be between 0 and 1"

@@ -11,6 +11,7 @@ import logging
 import os
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -76,9 +77,14 @@ def _connect() -> sqlite3.Connection:
 
 @contextmanager
 def _read() -> Iterator[sqlite3.Connection]:
+    """Run several reads as one transaction, so they all see the same snapshot."""
     conn = _connect()
     try:
-        yield conn
+        conn.execute("BEGIN")
+        try:
+            yield conn
+        finally:
+            conn.execute("COMMIT")
     finally:
         conn.close()
 
@@ -115,6 +121,8 @@ def init_db():
     conn = _connect()
     try:
         conn.execute("PRAGMA journal_mode = WAL")
+        # Every statement is CREATE ... IF NOT EXISTS, so this is safe to rerun
+        conn.executescript(SCHEMA)
     finally:
         conn.close()
 
@@ -122,9 +130,6 @@ def init_db():
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version >= SCHEMA_VERSION:
             return
-        for statement in SCHEMA.split(";"):
-            if statement.strip():
-                conn.execute(statement)
         _import_gestures(conn)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
@@ -134,22 +139,37 @@ def _import_gestures(conn: sqlite3.Connection):
 
     Prefers DATA_DIR/gestures.json, which holds the gestures of deployments
     that predate the database, and falls back to the committed seed file.
+    A file that can't be imported is logged and left in place, so the
+    backend still starts.
     """
-    legacy_file = DATA_DIR / "gestures.json"
-    source = legacy_file if legacy_file.exists() else SEED_GESTURES_FILE
-    if not source.exists():
+    for source in (DATA_DIR / "gestures.json", SEED_GESTURES_FILE):
+        if not source.exists():
+            continue
+        conn.execute("SAVEPOINT import_gestures")
+        try:
+            count = _import_gestures_from(conn, source)
+        except Exception:
+            conn.execute("ROLLBACK TO import_gestures")
+            conn.execute("RELEASE import_gestures")
+            logger.exception("Could not import gestures from %s", source)
+            continue
+        conn.execute("RELEASE import_gestures")
+        logger.info("Imported %d gestures from %s", count, source)
         return
 
+
+def _import_gestures_from(conn: sqlite3.Connection, source: Path) -> int:
     data = json.loads(source.read_text(encoding="utf-8"))
-    for gesture_data in data.values():
+    # The old JSON storage looked symbols up by their key, so the key wins
+    for symbol, gesture_data in data.items():
         definition = GestureDefinition(**gesture_data)
         gesture_id = conn.execute(
             "INSERT INTO gestures (symbol, threshold) VALUES (?, ?)",
-            (definition.symbol, definition.threshold),
+            (symbol, definition.threshold),
         ).lastrowid
         for variant in definition.variants:
             _insert_variant(conn, gesture_id, variant)
-    logger.info("Imported %d gestures from %s", len(data), source)
+    return len(data)
 
 
 # ==================== LEADERBOARD ====================
@@ -293,47 +313,58 @@ def _variant_count(conn: sqlite3.Connection, gesture_id: int) -> int:
     ).fetchone()[0]
 
 
-def list_symbols() -> list[str]:
-    """All symbols, in the order they were first added."""
+def gesture_exists(symbol: str) -> bool:
     with _read() as conn:
-        rows = conn.execute("SELECT symbol FROM gestures ORDER BY id").fetchall()
-        return [row["symbol"] for row in rows]
+        return _gesture_row(conn, symbol) is not None
 
 
-def list_gesture_summaries() -> list[tuple[str, list[GestureVariant]]]:
-    """All symbols with their variants (without landmarks), in insertion order."""
+def list_gesture_summaries() -> list[tuple[str, int, Optional[datetime]]]:
+    """All symbols with their variant count and newest variant time, in insertion order."""
     with _read() as conn:
-        gestures = conn.execute("SELECT id, symbol FROM gestures ORDER BY id").fetchall()
         rows = conn.execute(
-            "SELECT gesture_id, id, hand_count, created_at FROM gesture_variants ORDER BY seq"
+            """
+            SELECT g.symbol, COUNT(v.seq) AS variant_count, MAX(v.created_at) AS last_updated
+            FROM gestures g LEFT JOIN gesture_variants v ON v.gesture_id = g.id
+            GROUP BY g.id
+            ORDER BY g.id
+            """
         ).fetchall()
+    return [
+        (
+            row["symbol"],
+            row["variant_count"],
+            datetime.fromisoformat(row["last_updated"]) if row["last_updated"] else None,
+        )
+        for row in rows
+    ]
 
-    variants: dict[int, list[GestureVariant]] = {g["id"]: [] for g in gestures}
-    for row in rows:
-        variants[row["gesture_id"]].append(GestureVariant(
-            id=row["id"],
-            handCount=row["hand_count"],
-            landmarks=[],
-            createdAt=row["created_at"],
-        ))
-    return [(g["symbol"], variants[g["id"]]) for g in gestures]
+
+def _load_gesture(conn: sqlite3.Connection, gesture: sqlite3.Row) -> GestureDefinition:
+    rows = conn.execute(
+        "SELECT * FROM gesture_variants WHERE gesture_id = ? ORDER BY seq",
+        (gesture["id"],),
+    ).fetchall()
+    return GestureDefinition(
+        symbol=gesture["symbol"],
+        variants=[_variant_from_row(row) for row in rows],
+        threshold=gesture["threshold"],
+    )
 
 
 def load_gesture(symbol: str) -> Optional[GestureDefinition]:
     """Load one symbol with all its variants, or None if it doesn't exist."""
     with _read() as conn:
         gesture = _gesture_row(conn, symbol)
-        if gesture is None:
-            return None
-        rows = conn.execute(
-            "SELECT * FROM gesture_variants WHERE gesture_id = ? ORDER BY seq",
-            (gesture["id"],),
-        ).fetchall()
-        return GestureDefinition(
-            symbol=gesture["symbol"],
-            variants=[_variant_from_row(row) for row in rows],
-            threshold=gesture["threshold"],
-        )
+        return None if gesture is None else _load_gesture(conn, gesture)
+
+
+def load_random_gesture() -> Optional[GestureDefinition]:
+    """Load a random symbol with all its variants, or None if there are none."""
+    with _read() as conn:
+        gesture = conn.execute(
+            "SELECT id, symbol, threshold FROM gestures ORDER BY RANDOM() LIMIT 1"
+        ).fetchone()
+        return None if gesture is None else _load_gesture(conn, gesture)
 
 
 def add_gesture_variant(symbol: str, variant: GestureVariant, threshold: Optional[float]) -> int:
