@@ -1,5 +1,6 @@
 services:
   backend:
+    image: ghcr.io/the-ray-man/speedyfingers-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -7,6 +8,8 @@ services:
       - .env
     environment:
       USE_MOCK_AUTHENTICATION: false # Set to `true` to enable mock authentication
+    volumes:
+      - backend-data:/data # Leaderboards and gestures; survives rebuilds
     expose:
       - 8000
     labels:
@@ -17,6 +20,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/the-ray-man/speedyfingers-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -39,3 +43,6 @@ services:
     ports:
       - 8080:8080
     restart: unless-stopped
+
+volumes:
+  backend-data:

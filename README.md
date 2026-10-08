@@ -32,6 +32,125 @@ This will build the containers and start the frontend, backend, and proxy. The a
 - **Frontend:** [`http://localhost:8080`](http://localhost:8080)
 - **Backend API:** [`http://localhost:8080/api`](http://localhost:8080/api)
 
+## Deployment
+
+A GitHub Actions workflow (`.github/workflows/docker-release.yml`) builds both
+images and publishes them to the GitHub Container Registry:
+
+- `ghcr.io/the-ray-man/speedyfingers-backend`
+- `ghcr.io/the-ray-man/speedyfingers-frontend`
+
+| Trigger              | Image tags                                         |
+| :------------------- | :------------------------------------------------- |
+| Push to `main`       | `latest`, `main`, `sha-<commit>`                   |
+| Git tag `v1.2.3`     | `1.2.3`, `1.2`, `sha-<commit>` + a GitHub Release  |
+| Pull request         | Built only, not pushed                             |
+
+### Publishing a release
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow pushes the images tagged `1.0.0` and `1.0` and creates a GitHub
+Release with generated notes.
+
+### Deploying to a server
+
+The server only needs Docker; you don't have to clone the repository or build
+anything.
+
+1. **Install Docker** with the Compose plugin (see the
+   [Docker install guide](https://docs.docker.com/engine/install/)) and check
+   it works:
+
+   ```bash
+   docker compose version
+   ```
+
+2. **Allow the server to pull the images.** New GHCR packages are private.
+   Either make both packages public (GitHub → your profile → *Packages* →
+   package → *Package settings* → *Change visibility*), or log in with a
+   [personal access token](https://github.com/settings/tokens) that has the
+   `read:packages` scope:
+
+   ```bash
+   docker login ghcr.io -u <github-username>
+   ```
+
+3. **Create a folder and download the compose file and env sample:**
+
+   ```bash
+   mkdir -p ~/speedyfingers && cd ~/speedyfingers
+   curl -fsSLO https://raw.githubusercontent.com/The-Ray-Man/SpeedyFingers/main/docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/The-Ray-Man/SpeedyFingers/main/.env.sample -o .env
+   ```
+
+   Edit `.env` if you need to change any values. The file has to exist, even
+   if you leave it as is.
+
+4. **(Optional) Pin a release.** By default the compose file uses `latest`,
+   which tracks `main`. To run a fixed version, replace `:latest` with the
+   version tag (for example `:1.0.0`) on the `backend` and `frontend` images
+   in `docker-compose.yml`.
+
+5. **Pull the images and start the stack:**
+
+   ```bash
+   docker compose pull
+   docker compose up -d --no-build
+   ```
+
+   `--no-build` makes Compose use the published images instead of trying to
+   build from source.
+
+6. **Check that it runs:**
+
+   ```bash
+   docker compose ps
+   curl http://localhost:8080/api/health
+   ```
+
+   The app is now served on port `8080`. Note that browsers only allow webcam
+   access on `localhost` or over HTTPS, so a public deployment needs TLS in
+   front of it.
+
+### Updating
+
+```bash
+cd ~/speedyfingers
+docker compose pull
+docker compose up -d --no-build
+```
+
+Compose recreates only the containers whose image changed. Old images can be
+removed with `docker image prune`.
+
+### Data and backups
+
+Leaderboards and gestures are stored in the named volume `backend-data`
+(mounted at `/data` in the backend container), so they survive updates and
+container rebuilds. On the very first start, the backend copies the committed
+files from `backend/data/` into the empty volume; after that it never
+overwrites them.
+
+Back up the data:
+
+```bash
+docker compose cp backend:/data ./backup-$(date +%F)
+```
+
+Restore a backup:
+
+```bash
+docker compose cp ./backup-YYYY-MM-DD/. backend:/data
+docker compose restart backend
+```
+
+> `docker compose down -v` deletes the volume and all data with it. Use
+> `docker compose down` (without `-v`) to stop the stack.
+
 ## Backend (FastAPI)
 
 The backend is a Python application built with the **FastAPI** framework. It provides a REST API for a multi-user todo list and includes an AI-powered feature.
