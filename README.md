@@ -202,17 +202,22 @@ Leaderboards are not touched.
 
 **Requirements.** You run the script on your own machine. It needs `bash` and
 `ssh` (on Windows, use Git Bash or WSL). The server needs nothing besides the
-stack from [Deploying to a server](#deploying-to-a-server): the script runs
-`docker compose exec` on the server and uses the backend container's Python.
-Your SSH user must be allowed to run `docker` without `sudo` (be in the
-`docker` group).
+stack from [Deploying to a server](#deploying-to-a-server), running in any
+folder: the script finds the running backend container by its Compose service
+name (`backend`) and uses that container's Python. Your SSH user must be
+allowed to run `docker` without `sudo` (be root or in the `docker` group).
 
-1. **Check that you can reach the server.** Use anything `ssh` accepts, for
-   example `user@example.com` or a `Host` alias from `~/.ssh/config`:
+1. **Check that you can reach the server and the stack is running.** Use
+   anything `ssh` accepts, for example `user@example.com` or a `Host` alias
+   from `~/.ssh/config`:
 
    ```bash
-   ssh user@example.com 'cd ~/speedyfingers && docker compose ps'
+   ssh user@example.com 'docker ps --filter label=com.docker.compose.service=backend'
    ```
+
+   This should list exactly one container. If it lists several (more than one
+   Compose stack on the server has a `backend` service), tell the script which
+   stack to use with `--dir` (see the options below).
 
    An SSH key is recommended, otherwise `ssh` asks for your password on every
    command.
@@ -267,7 +272,7 @@ scripts/gestures.sh upload user@new-server.com gestures.json
 
 | Option | Default | Description |
 | :----- | :------ | :---------- |
-| `-d`, `--dir DIR` | `~/speedyfingers` | Folder with `docker-compose.yml` on the server. Quote a `~` (`-d '~/apps/sf'`) so it's expanded on the server, not on your machine. Can also be set with `SPEEDYFINGERS_DIR`. |
+| `-d`, `--dir DIR` | found automatically | Folder with `docker-compose.yml` on the server. Only needed if several running stacks have a `backend` service. Quote a `~` (`-d '~/apps/sf'`) so it's expanded on the server, not on your machine. Can also be set with `SPEEDYFINGERS_DIR`. |
 | `-s`, `--service NAME` | `backend` | Compose service of the backend. Can also be set with `SPEEDYFINGERS_SERVICE`. |
 | `-y`, `--yes` | | Upload without asking for confirmation, e.g. in scripts. |
 | `--no-backup` | | Upload without downloading a backup first. |

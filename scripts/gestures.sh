@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-REMOTE_DIR="${SPEEDYFINGERS_DIR:-~/speedyfingers}"
+REMOTE_DIR="${SPEEDYFINGERS_DIR:-}"
 SERVICE="${SPEEDYFINGERS_SERVICE:-backend}"
 ASSUME_YES=false
 NO_BACKUP=false
@@ -103,13 +103,23 @@ PY
 # passing this function's stdin through. The helper itself goes over the
 # same stdin as one base64 line, which avoids quoting it for the remote shell.
 run_helper() {
-    local command="$1" encoded
+    local command="$1" encoded remote
+    local python="python -c 'import base64, sys; exec(base64.b64decode(sys.stdin.buffer.readline()))' $command"
+    if [[ -n "$REMOTE_DIR" ]]; then
+        # REMOTE_DIR is left unquoted so that a leading ~ expands on the server
+        remote="cd $REMOTE_DIR && docker compose exec -T $SERVICE $python"
+    else
+        # Find the container by the label Compose puts on it, so the script
+        # works no matter where the compose file is
+        remote='set -- $(docker ps -q --filter label=com.docker.compose.service='"$SERVICE"')
+if [ $# -ne 1 ]; then
+    echo "error: found $# running containers of the Compose service '"$SERVICE"'; is the stack running? If there are several stacks, pass --dir" >&2
+    exit 1
+fi
+docker exec -i "$1" '"$python"
+    fi
     encoded="$(printf '%s' "$HELPER" | base64 | tr -d '\n')"
-    # REMOTE_DIR is left unquoted so that a leading ~ expands on the server
-    { printf '%s\n' "$encoded"; cat; } | ssh "$HOST" \
-        "cd $REMOTE_DIR && docker compose exec -T $SERVICE python -c" \
-        "'import base64, sys; exec(base64.b64decode(sys.stdin.buffer.readline()))'" \
-        "$command"
+    { printf '%s\n' "$encoded"; cat; } | ssh "$HOST" "$remote"
 }
 
 # Downloads the gestures to $1, without leaving a partial file behind.
