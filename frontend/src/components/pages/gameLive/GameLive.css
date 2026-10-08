@@ -3,22 +3,27 @@
   font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   background: radial-gradient(circle at top, #1f1f2e, #0d0d15);
   color: #f5f7fb;
-  min-height: 100%;
+  /* Vertical space taken by everything around the stage (page padding,
+     timebar, controls, status line and the gaps between them). The stage
+     gets the rest of the viewport height. */
+  --stage-chrome: calc(4 * var(--page-gap) + 2 * var(--page-padding) + 150px);
+  --page-padding: clamp(0.75rem, 2vh, 1.5rem);
+  --page-gap: clamp(0.75rem, 2.5vh, 1.5rem);
+  --side-width: clamp(170px, 16vw, 260px);
+  min-height: 100vh;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.5rem;
+  padding: var(--page-padding);
   box-sizing: border-box;
 }
 
 .game-live-page main {
   width: min(100%, 1440px);
-  min-height: 95vh;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  padding-bottom: 2rem;
+  gap: var(--page-gap);
 }
 
 .game-live-page .top-bar {
@@ -30,16 +35,19 @@
   display: flex;
   justify-content: center;
   align-items: stretch;
-  gap: 1.5rem;
   flex-wrap: nowrap;
+  gap: clamp(0.75rem, 1.5vw, 1.5rem);
 }
 
+/* Sized from the viewport height so the whole game fits on screen, and
+   shrinks with the width when the side columns need the room. */
 .game-live-page .stage-wrapper {
   position: relative;
-  flex: 1 1 clamp(760px, 60vw, 1080px);
+  flex: 0 1 calc(max(100vh - var(--stage-chrome), 300px) * 16 / 9);
+  min-width: 0;
   max-width: 1080px;
-  min-height: clamp(420px, 72vh, 720px);
   display: flex;
+  align-items: center;
 }
 
 .game-live-page .stage {
@@ -50,7 +58,6 @@
   background: linear-gradient(135deg, rgba(90, 80, 180, 0.35), rgba(25, 220, 250, 0.15));
   aspect-ratio: 16 / 9;
   width: 100%;
-  min-height: inherit;
 }
 
 .game-live-page .stage::after {
@@ -158,9 +165,8 @@
   align-items: center;
   justify-content: center;
   gap: 1.25rem;
-  width: 260px;
-  flex: 0 0 260px;
-  min-height: clamp(420px, 72vh, 720px);
+  width: var(--side-width);
+  flex: 0 0 var(--side-width);
 }
 
 .game-live-page .player-panel {
@@ -213,6 +219,7 @@
 .game-live-page .score-block {
   width: 100%;
   max-width: 240px;
+  box-sizing: border-box;
 }
 
 .game-live-page .panel-highlight {
@@ -288,7 +295,6 @@
 }
 
 .game-live-page .timebar {
-  margin-top: 1em;
   position: relative;
   width: min(100%, 640px);
   height: 45px;
@@ -367,7 +373,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: clamp(0.5rem, 3%, 2rem);
   background: rgba(10, 14, 24, 0.55);
   backdrop-filter: blur(8px);
   z-index: 5;
@@ -375,14 +381,17 @@
 
 .game-live-page .post-game-card {
   width: min(100%, 620px);
-  padding: 1.75rem 2rem;
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: clamp(1rem, 4%, 1.75rem) clamp(1.25rem, 4%, 2rem);
   border-radius: 24px;
   background: linear-gradient(150deg, rgba(30, 32, 60, 0.9), rgba(45, 48, 88, 0.82));
   border: 1px solid rgba(140, 200, 255, 0.35);
   box-shadow: 0 24px 50px rgba(10, 15, 35, 0.6);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: clamp(0.6rem, 3%, 1.25rem);
 }
 
 .game-live-page .post-game-input {

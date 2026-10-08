@@ -580,7 +580,7 @@ const PlayMode: React.FC = () => {
     <Box
       bg={pageBackground}
       minH="100vh"
-      py={{ base: 10, md: 16 }}
+      py={{ base: 6, md: 8 }}
       px={{ base: 4, md: 8 }}
       color="#f5f7fb"
     >
@@ -589,7 +589,7 @@ const PlayMode: React.FC = () => {
         </div>
       <Container maxW="6xl" p={0}>
         <Toaster />
-        <VStack gap={10} align="stretch">
+        <VStack gap={6} align="stretch">
           <video ref={videoRef} style={{ display: "none" }} width="640" height="480" playsInline muted />
           
           {/* Title */}
@@ -632,7 +632,7 @@ const PlayMode: React.FC = () => {
 
           {/* Main Game Layout - Always rendered once camera is ready */}
           {cameraReady && (
-            <Flex direction={{ base: "column", lg: "row" }} gap={6} align="stretch">
+            <Flex direction={{ base: "column", lg: "row" }} gap={6} align={{ base: "center", lg: "stretch" }} justify="center">
               {/* Sidebar - Only show during active game */}
               {gameStarted && !gameOver && (
                 <VStack
@@ -753,9 +753,15 @@ const PlayMode: React.FC = () => {
               )}
 
               {/* Camera view - Always in the same position */}
+              {/* Width follows the viewport height so the whole 4:3 feed
+                  stays on screen (title and padding take ~200px). */}
               <Box
                 position="relative"
-                flex="1"
+                flex="0 1 auto"
+                w="min(100%, calc(max(100vh - 200px, 300px) * 4 / 3))"
+                minW={0}
+                aspectRatio="4 / 3"
+                alignSelf="flex-start"
                 borderRadius="2xl"
                 bg="linear-gradient(135deg, rgba(90, 80, 180, 0.35), rgba(25, 220, 250, 0.18))"
                 border={`1px solid ${borderColor}`}
