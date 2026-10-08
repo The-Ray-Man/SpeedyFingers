@@ -6,7 +6,6 @@ from datetime import datetime
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
     GameType,
@@ -44,13 +43,8 @@ app = FastAPI(
 )
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# No CORS middleware: the frontend and API share one origin (Traefik in Docker,
+# the Vite proxy in dev), so cross-origin requests are rejected by the browser.
 
 
 @app.get("/api/leaderboard/{game_type}/single", response_model=list[dict])

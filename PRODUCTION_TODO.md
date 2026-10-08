@@ -19,24 +19,34 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   trusted proxy (`backend/auth.py`). These endpoints return `403` unless the
   user id is listed in `TRUSTED_USER_IDS`. The client-side `admin123`
   password in Dev Mode was removed.*
-- [ ] **The backend trusts the `X-User-*` headers.** Make sure the backend is
+- [x] **The backend trusts the `X-User-*` headers.** Make sure the backend is
   only reachable through the trusted proxy, and that the proxy overwrites or
   strips any `X-User-Id` / `X-User-Name` sent by the client. Otherwise anyone
   can impersonate a trusted user.
+  *Done: the deployment sits behind the authenticating proxy and is not
+  reachable any other way (port 8080 checked). If the proxy only appended a
+  header, the backend would read the client's copy, because
+  `request.headers.get()` returns the first value. Check this whenever the
+  proxy setup changes: send a fake `X-User-Id` and compare `/api/me`.*
 - [ ] **Dev Mode is public.** The home page has a card linking to `/dev-mode`
   (`frontend/src/pages/Home.tsx:126`, `:176`), and the route is always
   registered (`App.tsx`). Hide it behind a build flag such as
   `import.meta.env.DEV` or an auth check.
   *Partly done: only trusted users can change gestures, and the edit controls
   are disabled for everyone else. The page and the home page links are still
-  visible to all users.*
+  visible to all users. Now only cosmetic: the backend enforces the
+  permission.*
 - [ ] **Scores can be faked.** `POST /api/score/submit` accepts any
   name and score from the client. Add at least rate limiting and an upper
   bound on score and symbols. If the leaderboard matters, also add
   server-issued game sessions or a plausibility check on the score.
   *Partly done: the player is now identified by `X-User-Id` from the proxy
   and the name comes from `X-User-Name`, so nobody can submit under someone
-  else's name. The score values are still trusted from the client.*
+  else's name. The score values are still trusted from the client. The game
+  matches gestures in the browser (`matchGestureLocally`), so any logged-in
+  user can post any score, but each user takes only one leaderboard slot.
+  Still to do: an upper bound on `score` and `symbols`. Today an integer
+  larger than SQLite's 64-bit limit returns a 500.*
 - [x] **Player names aren't validated.** `name` has no length limit, no
   character set restriction, and no profanity filter (`models.py`).
   *Obsolete: clients no longer send a name. The leaderboard shows the
@@ -45,17 +55,32 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   `List[List[List[float]]]`, so a large payload can exhaust memory and CPU in
   `/gestures/match` and on save. Limit hands to 2 and points to 21 per hand
   with `conlist` or Field constraints, and set a body size limit in Traefik.
-- [ ] **CORS is wide open.** `allow_origins=["*"]` combined with
+  *Lower risk behind the authenticating proxy, but malformed input already
+  crashes `/gestures/match`: points with fewer than three coordinates raise
+  an `IndexError` in `ai.py`, which returns a 500. Only Dev Mode calls that
+  endpoint.*
+- [x] **CORS is wide open.** `allow_origins=["*"]` combined with
   `allow_credentials=True` (`app.py`). Restrict it to the real origin.
   Behind the single Traefik origin, CORS can probably be removed entirely.
-- [ ] **Traefik has full access to the Docker socket** and uses the unpinned
+  *Done: the CORS middleware was removed. With authentication in place, it
+  let any website make credentialed requests through the proxy, for example
+  to delete gestures while a trusted user was logged in. In Docker the
+  frontend and API share Traefik's origin, and in dev they share the Vite
+  proxy's.*
+- [x] **Traefik has full access to the Docker socket** and uses the unpinned
   `traefik` image. Pin a version (for example `traefik:v3.x`). Also set
   `--providers.docker.exposedbydefault=false`, because every service already
   sets `traefik.enable`.
+  *Done: pinned to `traefik:v3.6`, the first minor version that works with
+  Docker Engine 29's minimum API version (v3.6.1+), and set
+  `exposedbydefault=false`. The socket is still mounted read-only, which the
+  Docker provider requires.*
 - [ ] **No HTTPS.** Only port 8080 over HTTP is exposed. Browsers block
   `getUserMedia` (the webcam) on non-secure origins, so **the game can't run
   on a public host without TLS.** Add a `websecure` entrypoint with Let's
   Encrypt (ACME) and redirect HTTP to HTTPS.
+  *Likely handled by the upstream proxy. Confirm that it terminates TLS and
+  sets HSTS, then tick this off.*
 - [ ] Add security headers: a `Content-Security-Policy` that allows
   `wasm-unsafe-eval` (MediaPipe is self-hosted now, so jsDelivr and
   storage.googleapis.com are no longer needed); HSTS; and

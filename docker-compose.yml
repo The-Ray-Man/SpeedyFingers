@@ -34,9 +34,12 @@ services:
     restart: unless-stopped
 
   traefik:
-    image: traefik
+    # Pinned: v3.6.1+ is needed for Docker Engine 29's minimum API version
+    image: traefik:v3.6
     command:
       - --providers.docker=true
+      # Only route containers that opt in with `traefik.enable: true`
+      - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
