@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import threading
 import uuid
 from pathlib import Path
@@ -18,8 +20,11 @@ from models import (
     MatchResponse,
 )
 
-# File paths for persistent storage
-LEADERBOARD_DIR = Path("data")
+# File paths for persistent storage. In Docker, DATA_DIR points at a mounted
+# volume so leaderboards and gestures survive container rebuilds.
+LEADERBOARD_DIR = Path(os.environ.get("DATA_DIR", "data"))
+# Committed data shipped with the code, copied into DATA_DIR on first start
+SEED_DIR = Path(__file__).parent / "data"
 FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
 FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
 BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
@@ -46,24 +51,26 @@ app.add_middleware(
 
 
 def initialize_storage():
-    """Create data directory and initialize leaderboard files if they don't exist."""
-    LEADERBOARD_DIR.mkdir(exist_ok=True)
-    
-    # Initialize all leaderboard files
-    for file_path in [
-        FINGER_SINGLE_PLAYER_FILE,
-        FINGER_MULTI_PLAYER_FILE,
-        BODY_SINGLE_PLAYER_FILE,
-        BODY_MULTI_PLAYER_FILE,
-        SINGLE_PLAYER_FILE,
-        MULTI_PLAYER_FILE,
-    ]:
-        if not file_path.exists():
-            file_path.write_text("[]")
-    
-    # Initialize gestures file
-    if not GESTURES_FILE.exists():
-        GESTURES_FILE.write_text("{}")
+    """Create data directory and initialize missing files from seed data or empty defaults."""
+    LEADERBOARD_DIR.mkdir(parents=True, exist_ok=True)
+
+    defaults = {
+        FINGER_SINGLE_PLAYER_FILE: "[]",
+        FINGER_MULTI_PLAYER_FILE: "[]",
+        BODY_SINGLE_PLAYER_FILE: "[]",
+        BODY_MULTI_PLAYER_FILE: "[]",
+        SINGLE_PLAYER_FILE: "[]",
+        MULTI_PLAYER_FILE: "[]",
+        GESTURES_FILE: "{}",
+    }
+    for file_path, default in defaults.items():
+        if file_path.exists():
+            continue
+        seed_file = SEED_DIR / file_path.name
+        if seed_file.exists():
+            shutil.copyfile(seed_file, file_path)
+        else:
+            file_path.write_text(default)
 
 
 def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
