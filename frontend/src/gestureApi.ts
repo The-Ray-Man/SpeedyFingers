@@ -2,7 +2,7 @@
  * API client for gesture management endpoints
  */
 
-const API_BASE_URL = "/api";
+import { API_BASE_URL } from "./apiConfig";
 
 export interface GestureVariant {
   id: string;
@@ -11,7 +11,7 @@ export interface GestureVariant {
   activeFingers?: Record<string, boolean>;
   activeRegions?: Record<string, boolean>;
   createdAt: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface GestureDefinition {
@@ -26,7 +26,7 @@ export interface GestureSubmission {
   landmarks: number[][][];
   activeFingers?: Record<string, boolean>;
   activeRegions?: Record<string, boolean>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   threshold?: number; // Similarity threshold for this gesture (default 0.55)
 }
 

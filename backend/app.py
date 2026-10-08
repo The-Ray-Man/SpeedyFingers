@@ -40,15 +40,11 @@ LEADERBOARD_DIR = Path(os.environ.get("DATA_DIR", "data"))
 SEED_DIR = Path(__file__).parent / "data"
 FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
 FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
-BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
-BODY_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "body_multi_player.json"
 GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"
 
 LEADERBOARD_FILES = {
     ("finger", "single"): FINGER_SINGLE_PLAYER_FILE,
     ("finger", "multi"): FINGER_MULTI_PLAYER_FILE,
-    ("body", "single"): BODY_SINGLE_PLAYER_FILE,
-    ("body", "multi"): BODY_MULTI_PLAYER_FILE,
 }
 
 file_lock = threading.Lock()
@@ -85,8 +81,6 @@ def initialize_storage():
     defaults = {
         FINGER_SINGLE_PLAYER_FILE: "[]",
         FINGER_MULTI_PLAYER_FILE: "[]",
-        BODY_SINGLE_PLAYER_FILE: "[]",
-        BODY_MULTI_PLAYER_FILE: "[]",
         GESTURES_FILE: "{}",
     }
     for file_path, default in defaults.items():

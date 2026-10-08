@@ -59,8 +59,6 @@ const PlayOptions = () => {
         }
       } catch (err) {
         console.error(err);
-        if (!cancelled) {
-        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -187,9 +185,6 @@ const PlayOptions = () => {
       startTimeRef.current = intention && intention !== "conflict" ? Date.now() : null;
       // Reset visual progress on intention switch
       setHoldProgress(0);
-      if (intention) {
-       
-      }
       return;
     }
 

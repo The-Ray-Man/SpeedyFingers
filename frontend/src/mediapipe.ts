@@ -9,7 +9,9 @@ import {
   FilesetResolver,
   GestureRecognizer,
   HandLandmarker,
+  type Category,
   type GestureRecognizerOptions,
+  type GestureRecognizerResult,
   type HandLandmarkerOptions,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
@@ -21,7 +23,7 @@ export const HAND_LANDMARKER_MODEL_PATH = `${BASE}mediapipe/models/hand_landmark
 export const GESTURE_RECOGNIZER_MODEL_PATH = `${BASE}mediapipe/models/gesture_recognizer.task`;
 
 export { DrawingUtils, GestureRecognizer, HandLandmarker };
-export type { NormalizedLandmark };
+export type { Category, GestureRecognizerResult, NormalizedLandmark };
 
 /** Thrown when the WASM runtime or a model file can't be loaded. */
 export class ModelLoadError extends Error {

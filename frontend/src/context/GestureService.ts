@@ -167,7 +167,7 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
     }
     // Detect thumbs up
     if (this.isThumbsUp(landmarks)) {
-      return { type: "THUMBS_UP" } as any; // Add "THUMBS_UP" to HandGesture type if needed
+      return { type: "THUMBS_UP" };
     }
 
     // 2) Default: fingers-up count
@@ -267,14 +267,18 @@ private interpretGesture(result: HandLandmarkerResult): TwoHandGestureState | nu
     this.stop();
     if (this.handLandmarker) {
       try {
-        (this.handLandmarker as any)?.close?.();
-      } catch {}
+        this.handLandmarker.close();
+      } catch {
+        // Already closed
+      }
       this.handLandmarker = null;
     }
     if (this.videoElement) {
       try {
         document.body.removeChild(this.videoElement);
-      } catch {}
+      } catch {
+        // Already removed from the page
+      }
       this.videoElement = null;
     }
     this.initPromise = null;
