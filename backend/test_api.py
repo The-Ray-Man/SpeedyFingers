@@ -20,23 +20,18 @@ def test_submit_scores():
     """Test score submission."""
     print("📝 Submitting test scores...")
     
-    # Single player scores
-    single_scores = [
-        {"name": "LaTeX Master", "score": 2850, "symbols": 28, "game_mode": "single"},
-        {"name": "Shape Wizard", "score": 2340, "symbols": 23, "game_mode": "single"},
-        {"name": "Symbol Ninja", "score": 2120, "symbols": 21, "game_mode": "single"},
+    # The player is identified by the X-User-Id / X-User-Name headers that the
+    # trusted proxy sets in production.
+    scores = [
+        ("u1", "LaTeX Master", {"score": 2850, "symbols": 28, "game_mode": "single", "game_type": "finger"}),
+        ("u2", "Shape Wizard", {"score": 2340, "symbols": 23, "game_mode": "single", "game_type": "finger"}),
+        ("u3", "Team Alpha", {"score": 3420, "symbols": 32, "game_mode": "multi", "game_type": "finger"}),
     ]
     
-    # Multi player scores
-    multi_scores = [
-        {"name": "Team Alpha", "score": 3420, "symbols": 32, "game_mode": "multi"},
-        {"name": "Code Warriors", "score": 3150, "symbols": 30, "game_mode": "multi"},
-        {"name": "Symbol Squad", "score": 2890, "symbols": 27, "game_mode": "multi"},
-    ]
-    
-    for score in single_scores + multi_scores:
-        response = requests.post(f"{API_BASE}/score/submit", json=score)
-        print(f"   Submitted: {score['name']} - {response.status_code}")
+    for user_id, user_name, score in scores:
+        headers = {"X-User-Id": user_id, "X-User-Name": user_name}
+        response = requests.post(f"{API_BASE}/score/submit", json=score, headers=headers)
+        print(f"   Submitted: {user_name} - {response.status_code}")
     
     print()
 
@@ -45,12 +40,12 @@ def test_get_leaderboards():
     print("📊 Fetching leaderboards...")
     
     # Single player
-    response = requests.get(f"{API_BASE}/leaderboard/single")
+    response = requests.get(f"{API_BASE}/leaderboard/finger/single")
     print(f"\n🏆 Single Player Leaderboard:")
     print(json.dumps(response.json(), indent=2))
     
     # Multi player
-    response = requests.get(f"{API_BASE}/leaderboard/multi")
+    response = requests.get(f"{API_BASE}/leaderboard/finger/multi")
     print(f"\n👥 Multi Player Leaderboard:")
     print(json.dumps(response.json(), indent=2))
 

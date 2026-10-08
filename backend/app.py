@@ -30,11 +30,7 @@ FINGER_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "finger_single_player.json"
 FINGER_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "finger_multi_player.json"
 BODY_SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "body_single_player.json"
 BODY_MULTI_PLAYER_FILE = LEADERBOARD_DIR / "body_multi_player.json"
-GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"  # New gesture storage
-
-# Legacy file paths (for backward compatibility)
-SINGLE_PLAYER_FILE = LEADERBOARD_DIR / "single_player.json"
-MULTI_PLAYER_FILE = LEADERBOARD_DIR / "multi_player.json"
+GESTURES_FILE = LEADERBOARD_DIR / "gestures.json"
 
 
 file_lock = threading.Lock()
@@ -60,8 +56,6 @@ def initialize_storage():
         FINGER_MULTI_PLAYER_FILE: "[]",
         BODY_SINGLE_PLAYER_FILE: "[]",
         BODY_MULTI_PLAYER_FILE: "[]",
-        SINGLE_PLAYER_FILE: "[]",
-        MULTI_PLAYER_FILE: "[]",
         GESTURES_FILE: "{}",
     }
     for file_path, default in defaults.items():
@@ -79,13 +73,7 @@ def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
     with file_lock:
         try:
             data = json.loads(file_path.read_text())
-            entries = []
-            for entry in data:
-                # Entries from before identity was tracked have no user id;
-                # give them a key that can never collide with a real user id.
-                entry.setdefault("user_id", f"legacy:{entry.get('name', '')}")
-                entries.append(LeaderboardEntry(**entry))
-            return entries
+            return [LeaderboardEntry(**entry) for entry in data]
         except Exception:
             return []
 
@@ -142,36 +130,6 @@ async def startup_event():
     """Initialize storage on startup."""
     initialize_storage()
     print("✅ Leaderboard backend initialized")
-
-
-@app.get("/api/leaderboard/single", response_model=list[dict])
-def get_single_player_leaderboard():
-    """Get single player leaderboard with ranks (legacy - defaults to finger game)."""
-    entries = load_leaderboard(FINGER_SINGLE_PLAYER_FILE)
-    return [
-        {
-            "rank": idx + 1,
-            "name": entry.name,
-            "score": entry.score,
-            "symbols": entry.symbols,
-        }
-        for idx, entry in enumerate(entries)
-    ]
-
-
-@app.get("/api/leaderboard/multi", response_model=list[dict])
-def get_multi_player_leaderboard():
-    """Get multi player leaderboard with ranks (legacy - defaults to finger game)."""
-    entries = load_leaderboard(FINGER_MULTI_PLAYER_FILE)
-    return [
-        {
-            "rank": idx + 1,
-            "team": entry.name,
-            "score": entry.score,
-            "symbols": entry.symbols,
-        }
-        for idx, entry in enumerate(entries)
-    ]
 
 
 @app.get("/api/leaderboard/{game_type}/single", response_model=list[dict])

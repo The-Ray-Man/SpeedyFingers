@@ -8,23 +8,39 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
 
 ### Security and abuse
 
-- [ ] **Anyone can delete or overwrite the gesture data.** These endpoints have
+- [x] **Anyone can delete or overwrite the gesture data.** These endpoints have
   no authentication: `POST /api/gestures`, `DELETE /api/gestures/{symbol}`,
   `DELETE /api/gestures/{symbol}/{variant_id}` and
   `PATCH /api/gestures/{symbol}/threshold` (`backend/app.py`). One curl
   request can wipe every symbol the game depends on. Protect them, for
   example with an admin token or by disabling them when not in dev, or move
   gesture authoring into a separate tool.
+  *Done: the backend reads the `X-User-Id` / `X-User-Name` headers set by the
+  trusted proxy (`backend/auth.py`). These endpoints return `403` unless the
+  user id is listed in `TRUSTED_USER_IDS`. The client-side `admin123`
+  password in Dev Mode was removed.*
+- [ ] **The backend trusts the `X-User-*` headers.** Make sure the backend is
+  only reachable through the trusted proxy, and that the proxy overwrites or
+  strips any `X-User-Id` / `X-User-Name` sent by the client. Otherwise anyone
+  can impersonate a trusted user.
 - [ ] **Dev Mode is public.** The home page has a card linking to `/dev-mode`
   (`frontend/src/pages/Home.tsx:126`, `:176`), and the route is always
   registered (`App.tsx`). Hide it behind a build flag such as
   `import.meta.env.DEV` or an auth check.
+  *Partly done: only trusted users can change gestures, and the edit controls
+  are disabled for everyone else. The page and the home page links are still
+  visible to all users.*
 - [ ] **Scores can be faked.** `POST /api/score/submit` accepts any
   name and score from the client. Add at least rate limiting and an upper
   bound on score and symbols. If the leaderboard matters, also add
   server-issued game sessions or a plausibility check on the score.
-- [ ] **Player names aren't validated.** `name` has no length limit, no
+  *Partly done: the player is now identified by `X-User-Id` from the proxy
+  and the name comes from `X-User-Name`, so nobody can submit under someone
+  else's name. The score values are still trusted from the client.*
+- [x] **Player names aren't validated.** `name` has no length limit, no
   character set restriction, and no profanity filter (`models.py`).
+  *Obsolete: clients no longer send a name. The leaderboard shows the
+  `X-User-Name` set by the trusted proxy.*
 - [ ] **No request size limits.** `landmarks` is an unbounded
   `List[List[List[float]]]`, so a large payload can exhaust memory and CPU in
   `/gestures/match` and on save. Limit hands to 2 and points to 21 per hand
@@ -64,11 +80,15 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   delete handlers load and then save under two separate lock acquisitions,
   so concurrent requests can lose updates. Hold one lock for the whole
   read-modify-write. The lock also only works with a single uvicorn worker.
-- [ ] Separate seed data from runtime data. Committed leaderboard entries,
+- [x] Separate seed data from runtime data. Committed leaderboard entries,
   such as test scores, shouldn't ship as production state.
   *Partly done in #1: runtime data now lives in the volume, but the
   committed leaderboard files (with test scores) are still used as seed
-  data on first start.*
+  data on first start.* *Done: the committed leaderboard files were removed;
+  only `gestures.json` is seed data. Leaderboards start empty, and
+  `backend/.gitignore` ignores the runtime score files. Old score files in an
+  existing volume aren't migrated (entries now need a `user_id`) and should
+  be deleted on upgrade (see README "Data and backups").*
 
 ### Backend runtime
 
@@ -124,12 +144,15 @@ Findings from a review of the codebase on 2026-10-08. The frontend builds
   applies.
 - [ ] `@app.on_event("startup")` is deprecated. Use a `lifespan` handler.
 - [ ] Replace `print` with `logging`.
-- [ ] Remove the legacy endpoints and files (`/leaderboard/single|multi`,
+- [x] Remove the legacy endpoints and files (`/leaderboard/single|multi`,
   `single_player.json`, `multi_player.json`) once the frontend no longer uses
   them.
+  *Done, along with the matching functions in `leaderboardApi.ts`.*
 - [ ] Turn `backend/test_api.py` into real pytest tests using FastAPI's
   `TestClient`. Today it needs a running server and `requests`, which isn't
   installed, and it doesn't send the required `game_type` field.
+  *Partly done: it now sends `game_type` and the `X-User-*` headers and uses
+  the current leaderboard routes. It still needs a running server.*
 
 ### Frontend quality
 
