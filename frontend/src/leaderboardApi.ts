@@ -15,8 +15,8 @@ export type LeaderboardEntry = {
   symbols: number;
 };
 
+// The player is identified by the backend from the trusted proxy headers
 export type ScoreSubmission = {
-  name: string;
   score: number;
   symbols: number;
   gameMode: "single" | "multi";
@@ -35,7 +35,6 @@ export async function submitScore(submission: ScoreSubmission): Promise<Leaderbo
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      name: submission.name,
       score: submission.score,
       symbols: submission.symbols,
       game_mode: submission.gameMode,

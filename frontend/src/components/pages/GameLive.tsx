@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitScore } from "@/leaderboardApi";
+import { useUser } from "@/context/UserContext";
 import { useRewardSound } from "../../context/rewardSoundContext";
 import MusicButton from "../design/MusicButton";
 
@@ -488,7 +489,7 @@ const GameLive = () => {
   const scoreHighlightRefs = useRef<Record<number, HTMLSpanElement | null>>({ 1: null, 2: null });
   const navigate = useNavigate();
   const [postGamePrompt, setPostGamePrompt] = useState<PostGameState | null>(null);
-  const [teamName, setTeamName] = useState("");
+  const { user } = useUser();
   const postGamePromptRef = useRef<PostGameState | null>(null);
   const postGameDeadlineRef = useRef<number | null>(null);
   const postGameTimerRef = useRef<number | null>(null);
@@ -530,7 +531,6 @@ const GameLive = () => {
     postGameDeadlineRef.current = null;
     postGamePromptRef.current = null;
     setPostGamePrompt(null);
-    setTeamName("");
     clearCountdown();
     updateStatusLine("Returning to menu...");
     navigate("/play");
@@ -542,9 +542,8 @@ const GameLive = () => {
       return;
     }
 
-    const trimmedName = teamName.trim();
-    if (!trimmedName) {
-      setPostGamePrompt(prev => (prev ? { ...prev, error: "Please enter a name before submitting." } : prev));
+    if (!user) {
+      setPostGamePrompt(prev => (prev ? { ...prev, error: "You need to be logged in to submit a score." } : prev));
       return;
     }
 
@@ -552,7 +551,6 @@ const GameLive = () => {
 
     try {
       await submitScore({
-        name: trimmedName,
         score: prompt.score,
         symbols: prompt.symbols,
         gameMode: "multi",
@@ -664,7 +662,6 @@ const GameLive = () => {
       statusMessage = "Great run! Enter your team name to submit the win, show 👍👍 to play again, or show 👎👎 to return to the menu."
     ) => {
       postGameDeadlineRef.current = performance.now() + POST_GAME_TIMEOUT_MS;
-      setTeamName(winnerId === 1 ? "Player 1" : "Player 2");
       const prompt: PostGameState = {
         winnerId,
         score,
@@ -717,7 +714,6 @@ const GameLive = () => {
       }
       postGameDeadlineRef.current = null;
       setPostGamePrompt(null);
-      setTeamName("");
       updateStatusLine(message.replace(/<br\s*\/?>/gi, " ").trim());
     }
 
@@ -736,7 +732,6 @@ const GameLive = () => {
       }
       postGameDeadlineRef.current = null;
       setPostGamePrompt(null);
-      setTeamName("");
 
       const sequence = ["3", "2", "1", "Go!"];
       let index = 0;
@@ -1586,7 +1581,6 @@ const GameLive = () => {
       gameStartTime = now;
       postGameDeadlineRef.current = null;
       setPostGamePrompt(null);
-      setTeamName("");
       coins.length = 0;
       coinEffects.length = 0;
       coinsSinceSpecial = 0;
@@ -1944,7 +1938,6 @@ const GameLive = () => {
         }
         postGameDeadlineRef.current = null;
         setPostGamePrompt(null);
-        setTeamName("");
         waitingForStart = true;
         beginMatch();
       }
@@ -2134,16 +2127,9 @@ const GameLive = () => {
                       Auto-return in {(postGamePrompt.remainingMs / 1000).toFixed(1)}s · show 👎👎 each to return now
                     </p>
 
-                    <label style={{ fontSize: "0.95rem", color: "rgba(235, 245, 255, 0.85)" }}>
-                      Team / Winner Name
-                    </label>
-                    <input
-                      className="post-game-input"
-                      value={teamName}
-                      onChange={event => setTeamName(event.target.value)}
-                      placeholder="Enter a name or both player names"
-                      disabled={postGamePrompt.submitting}
-                    />
+                    <p style={{ fontSize: "0.95rem", color: "rgba(235, 245, 255, 0.85)", margin: 0 }}>
+                      {user ? `Submitting as ${user.username}` : "Log in to submit your score"}
+                    </p>
 
                     {postGamePrompt.error && (
                       <p style={{ color: "#ff9a9a", margin: 0 }}>{postGamePrompt.error}</p>
@@ -2152,7 +2138,7 @@ const GameLive = () => {
                     <div className="post-game-actions">
                       <button
                         type="button"
-                        disabled={postGamePrompt.submitting}
+                        disabled={postGamePrompt.submitting || !user}
                         onClick={handleSubmitWinner}
                       >
                         {postGamePrompt.submitting ? "Submitting…" : "Submit to Leaderboard"}

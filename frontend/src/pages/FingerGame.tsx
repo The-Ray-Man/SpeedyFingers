@@ -20,6 +20,7 @@ import { getRandomGesture, type GestureDefinition } from "../gestureApi";
 import { landmarksToArray } from "../advancedGestureRecognition";
 import { matchGestureLocally } from "../utils/localGestureMatcher";
 import { submitScore, getGameSinglePlayerLeaderboard, type LeaderboardEntry } from "../leaderboardApi";
+import { useUser } from "@/context/UserContext";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import { useRewardSound } from "../context/rewardSoundContext";
 import MusicButton from "@/components/design/MusicButton";
@@ -56,7 +57,7 @@ const PlayMode: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [usernameInput, setUsernameInput] = useState("");
+  const { user } = useUser();
   const [waitingForThumbsUp, setWaitingForThumbsUp] = useState(true);
   const [cameraReady, setCameraReady] = useState(false);
   const [bothThumbsUpDetected, setBothThumbsUpDetected] = useState(false);
@@ -414,7 +415,6 @@ const PlayMode: React.FC = () => {
             waitingForThumbsUpRef.current = true;
             setScore(0);
             setSymbolsCompleted(0);
-            setUsernameInput('');
           } else if (hand1ThumbsDown && hand2ThumbsDown) {
             console.log("Both thumbs down detected! Returning to menu...");
             // Clear timers
@@ -593,10 +593,10 @@ const PlayMode: React.FC = () => {
 
   // Submit score
   const handleSubmitScore = async () => {
-    if (!usernameInput || usernameInput.trim() === "") {
+    if (!user) {
       toaster.create({
         title: "Error",
-        description: "Please enter your username.",
+        description: "You need to be logged in to submit a score.",
         type: "error",
       });
       return;
@@ -604,7 +604,6 @@ const PlayMode: React.FC = () => {
 
     try {
       await submitScore({
-        name: usernameInput.trim(),
         score: score,
         symbols: symbolsCompleted,
         gameMode: "single",
@@ -622,7 +621,6 @@ const PlayMode: React.FC = () => {
       
       // Transition to waiting for replay
       setWaitingForReplay(true);
-      setUsernameInput('');
     } catch (error) {
       console.error("Failed to submit score:", error);
       toaster.create({
@@ -953,37 +951,12 @@ const PlayMode: React.FC = () => {
                   {/* Username input and buttons - only show if not waiting for replay */}
                   {!waitingForReplay && (
                     <VStack gap={3} w="full">
-                      <VStack gap={2} w="full">
-                        <Text fontSize="md" fontWeight="semibold" color={mutedText}>
-                          Winner Name
-                        </Text>
-                        <input
-                          type="text"
-                          value={usernameInput}
-                          onChange={(e) => setUsernameInput(e.target.value)}
-                          placeholder="Enter your name..."
-                          maxLength={20}
-                          style={{
-                            width: "100%",
-                            padding: "12px 16px",
-                            fontSize: "16px",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
-                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                            color: "#f5f7fb",
-                            outline: "none",
-                          }}
-                          onFocus={(e) => {
-                            e.target.style.border = "1px solid #88c8ff";
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-                          }}
-                        />
-                      </VStack>
+                      <Text fontSize="md" fontWeight="semibold" color={mutedText}>
+                        {user ? `Submitting as ${user.username}` : "Log in to submit your score"}
+                      </Text>
                       
                       <HStack gap={3} w="full">
-                        <Button colorScheme="green" size="lg" onClick={handleSubmitScore} flex="1">
+                        <Button colorScheme="green" size="lg" onClick={handleSubmitScore} flex="1" disabled={!user}>
                           Submit to Leaderboard
                         </Button>
                         <Button colorScheme="red" size="lg" onClick={handleSkipAndReturn} flex="1">

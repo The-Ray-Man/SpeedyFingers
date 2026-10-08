@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -19,6 +19,7 @@ from models import (
     MatchRequest,
     MatchResponse,
 )
+from auth import User, get_current_user, require_trusted_user
 
 # File paths for persistent storage. In Docker, DATA_DIR points at a mounted
 # volume so leaderboards and gestures survive container rebuilds.
@@ -78,7 +79,13 @@ def load_leaderboard(file_path: Path) -> list[LeaderboardEntry]:
     with file_lock:
         try:
             data = json.loads(file_path.read_text())
-            return [LeaderboardEntry(**entry) for entry in data]
+            entries = []
+            for entry in data:
+                # Entries from before identity was tracked have no user id;
+                # give them a key that can never collide with a real user id.
+                entry.setdefault("user_id", f"legacy:{entry.get('name', '')}")
+                entries.append(LeaderboardEntry(**entry))
+            return entries
         except Exception:
             return []
 
@@ -101,9 +108,9 @@ def update_leaderboard(
     """
     entries = load_leaderboard(file_path)
     
-    # Check if player/team already exists
+    # Check if the user already has an entry (keyed by the unique user id)
     existing_index = next(
-        (i for i, e in enumerate(entries) if e.name == new_entry.name), 
+        (i for i, e in enumerate(entries) if e.user_id == new_entry.user_id), 
         None
     )
     
@@ -111,6 +118,9 @@ def update_leaderboard(
         # Update only if new score is better
         if new_entry.score > entries[existing_index].score:
             entries[existing_index] = new_entry
+        else:
+            # Keep the displayed name in sync with the user's current name
+            entries[existing_index].name = new_entry.name
     else:
         # Add new entry
         entries.append(new_entry)
@@ -215,7 +225,7 @@ def get_game_multi_player_leaderboard(game_type: str):
 
 
 @app.post("/api/score/submit", status_code=status.HTTP_201_CREATED)
-def submit_score(submission: ScoreSubmission):
+def submit_score(submission: ScoreSubmission, user: User = Depends(get_current_user)):
     """
     Submit a new score for either single or multi player mode.
     Returns the updated leaderboard.
@@ -242,7 +252,8 @@ def submit_score(submission: ScoreSubmission):
     
     # Create leaderboard entry
     entry = LeaderboardEntry(
-        name=submission.name,
+        user_id=user.id,
+        name=user.name,
         score=submission.score,
         symbols=submission.symbols,
         timestamp=datetime.now()
@@ -270,6 +281,12 @@ def submit_score(submission: ScoreSubmission):
             for idx, e in enumerate(updated_entries)
         ]
     }
+
+
+@app.get("/api/me")
+def get_me(user: User = Depends(get_current_user)):
+    """Get the current user as identified by the trusted proxy."""
+    return {"id": user.id, "name": user.name, "canManageGestures": user.is_trusted}
 
 
 @app.get("/api/health")
@@ -302,7 +319,7 @@ def save_gestures(gestures: dict[str, GestureDefinition]):
 
 
 @app.post("/api/gestures", status_code=status.HTTP_201_CREATED)
-def save_gesture(submission: GestureSubmission):
+def save_gesture(submission: GestureSubmission, _: User = Depends(require_trusted_user)):
     """
     Save a new gesture variant for a symbol.
     Creates a new symbol entry if it doesn't exist.
@@ -433,7 +450,7 @@ def match_gesture(request: MatchRequest):
 
 
 @app.delete("/api/gestures/{symbol}/{variant_id}")
-def delete_gesture_variant(symbol: str, variant_id: str):
+def delete_gesture_variant(symbol: str, variant_id: str, _: User = Depends(require_trusted_user)):
     """Delete a specific gesture variant."""
     gestures = load_gestures()
     
@@ -464,7 +481,7 @@ def delete_gesture_variant(symbol: str, variant_id: str):
 
 
 @app.delete("/api/gestures/{symbol}")
-def delete_gesture(symbol: str):
+def delete_gesture(symbol: str, _: User = Depends(require_trusted_user)):
     """Delete an entire gesture symbol with all its variants."""
     gestures = load_gestures()
     
@@ -482,7 +499,7 @@ def delete_gesture(symbol: str):
 
 
 @app.patch("/api/gestures/{symbol}/threshold")
-def update_gesture_threshold(symbol: str, threshold: float):
+def update_gesture_threshold(symbol: str, threshold: float, _: User = Depends(require_trusted_user)):
     """Update the threshold for a specific gesture."""
     gestures = load_gestures()
     
