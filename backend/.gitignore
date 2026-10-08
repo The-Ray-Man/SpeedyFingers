@@ -1,4 +1,5 @@
 .venv
 
-# Runtime leaderboards (only gestures.json is committed seed data)
-data/*_player.json
+# Runtime database (only gestures.json is committed seed data)
+data/*.db
+data/*.db-*
