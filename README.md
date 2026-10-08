@@ -113,9 +113,9 @@ anything.
    curl -fsSLO https://raw.githubusercontent.com/The-Ray-Man/SpeedyFingers/main/docker-compose.yml
    ```
 
-   To let users edit gestures, create a `.env` file next to it with
-   `TRUSTED_USER_IDS` (see [Authentication](#authentication) and
-   `.env.sample`). The file is optional.
+   To let users edit gestures, create a `.env` file in the same folder. The
+   file is optional. See [The `.env` file](#the-env-file) for the exact
+   format.
 
 4. **(Optional) Pin a release.** By default the compose file uses `latest`,
    which tracks `main`. To run a fixed version, replace `:latest` with the
@@ -267,17 +267,61 @@ The backend never takes the player's identity from the request body.
 backend must therefore only be reachable through that proxy, otherwise
 clients could set the headers themselves.
 
-Adding, deleting and re-thresholding gestures is limited to trusted users.
-List their ids, comma-separated, in `TRUSTED_USER_IDS` (for Docker, in a
-`.env` file next to `docker-compose.yml`; see `.env.sample`):
+Adding, deleting and re-thresholding gestures is limited to trusted users,
+whose ids are listed in `TRUSTED_USER_IDS` (see
+[The `.env` file](#the-env-file)). Other users get `403`. For local
+development without the proxy, set `USE_MOCK_AUTHENTICATION=true`: requests
+without `X-User-Id` are then treated as the user `mock-user` (add it to
+`TRUSTED_USER_IDS` to edit gestures).
+
+### The `.env` file
+
+Docker Compose reads a file named exactly `.env` from the folder that
+contains `docker-compose.yml` and passes `TRUSTED_USER_IDS` to the backend.
+The file is optional: without it, nobody can edit gestures, but the game
+works normally. Copy [`.env.sample`](.env.sample) to start:
 
 ```bash
-TRUSTED_USER_IDS=user-id-1,user-id-2
+cp .env.sample .env
 ```
 
-Other users get `403`. For local development without the proxy, set
-`USE_MOCK_AUTHENTICATION=true`: requests without `X-User-Id` are then treated
-as the user `mock-user` (add it to `TRUSTED_USER_IDS` to edit gestures).
+The file has one setting:
+
+```dotenv
+TRUSTED_USER_IDS=alice@example.com,1f3c9a2e-77b4-4c1d-9e0a-5b6d8f2a1c34
+```
+
+Formatting rules for `TRUSTED_USER_IDS`:
+
+- **One line, `KEY=value`.** No `export`, no spaces around the `=`.
+- **Ids are separated by commas.** Spaces around the commas are ignored, so
+  `a, b` is the same as `a,b`. Empty entries (`a,,b` or a trailing comma) are
+  skipped.
+- **Each id must equal the `X-User-Id` header exactly.** The comparison is
+  case-sensitive and there are no wildcards or patterns: `Alice` and `alice`
+  are different users. Use the id, not the display name (`X-User-Name`).
+- **Quotes are optional.** `TRUSTED_USER_IDS="a,b"` works too; Compose removes
+  the quotes. An id can't contain a comma.
+- **An empty value** (`TRUSTED_USER_IDS=`) or a missing line means no one is
+  trusted.
+- Lines starting with `#` are comments.
+
+To find a user's id, have them sign in through the proxy and open
+`/api/me`; the `id` field is the value to add. `canManageGestures` shows
+whether they are already trusted.
+
+The value is read when the backend container starts. After editing `.env`,
+recreate the container (`docker compose restart` is not enough, because it
+keeps the old environment):
+
+```bash
+docker compose up -d --no-build
+```
+
+A `TRUSTED_USER_IDS` variable set in the shell that runs `docker compose`
+takes precedence over the `.env` file. Without Docker, set it as a normal
+environment variable when starting the backend, as in
+[Local development](#backend).
 
 ## Project status
 
