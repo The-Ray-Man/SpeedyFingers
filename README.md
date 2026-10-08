@@ -192,6 +192,92 @@ docker compose exec backend rm /data/restore.db
 > `docker compose down -v` deletes the volume and all data with it. Use
 > `docker compose down` (without `-v`) to stop the stack.
 
+### Moving gestures between servers
+
+[`scripts/gestures.sh`](scripts/gestures.sh) downloads the gestures from a
+server's database into a JSON file and uploads such a file to a server. Use it
+to back up the gestures recorded in Dev Mode, to copy them from one deployment
+to another, or to update the committed seed file `backend/data/gestures.json`.
+Leaderboards are not touched.
+
+**Requirements.** You run the script on your own machine. It needs `bash` and
+`ssh` (on Windows, use Git Bash or WSL). The server needs nothing besides the
+stack from [Deploying to a server](#deploying-to-a-server): the script runs
+`docker compose exec` on the server and uses the backend container's Python.
+Your SSH user must be allowed to run `docker` without `sudo` (be in the
+`docker` group).
+
+1. **Check that you can reach the server.** Use anything `ssh` accepts, for
+   example `user@example.com` or a `Host` alias from `~/.ssh/config`:
+
+   ```bash
+   ssh user@example.com 'cd ~/speedyfingers && docker compose ps'
+   ```
+
+   An SSH key is recommended, otherwise `ssh` asks for your password on every
+   command.
+
+2. **Download the gestures:**
+
+   ```bash
+   scripts/gestures.sh download user@example.com
+   ```
+
+   This writes `gestures-user_example.com-<date>-<time>.json` to the current
+   folder. To choose the file name, pass it as the last argument:
+
+   ```bash
+   scripts/gestures.sh download user@example.com my-gestures.json
+   ```
+
+   The file has the same format as `backend/data/gestures.json`, so you can
+   commit it as the new seed file:
+
+   ```bash
+   scripts/gestures.sh download user@example.com backend/data/gestures.json
+   ```
+
+3. **Upload gestures.** An upload **replaces all gestures** on the server
+   with the ones in the file; symbols that aren't in the file are deleted.
+
+   ```bash
+   scripts/gestures.sh upload user@other-server.com my-gestures.json
+   ```
+
+   The script asks for confirmation, then saves the server's current gestures
+   to `gestures-<host>-<date>-<time>-backup.json` before it replaces them. The
+   file is checked first, and the replacement runs in a single transaction: if
+   anything is wrong, the server keeps its old gestures. The backend serves
+   the new gestures right away (no restart needed); open pages may need a reload.
+
+   To undo an upload, upload the backup file:
+
+   ```bash
+   scripts/gestures.sh upload user@other-server.com gestures-user_other-server.com-20261008-120000-backup.json
+   ```
+
+**Copying the gestures from one server to another** combines both steps:
+
+```bash
+scripts/gestures.sh download user@old-server.com gestures.json
+scripts/gestures.sh upload user@new-server.com gestures.json
+```
+
+**Options** (before the command, see `scripts/gestures.sh --help`):
+
+| Option | Default | Description |
+| :----- | :------ | :---------- |
+| `-d`, `--dir DIR` | `~/speedyfingers` | Folder with `docker-compose.yml` on the server. Quote a `~` (`-d '~/apps/sf'`) so it's expanded on the server, not on your machine. Can also be set with `SPEEDYFINGERS_DIR`. |
+| `-s`, `--service NAME` | `backend` | Compose service of the backend. Can also be set with `SPEEDYFINGERS_SERVICE`. |
+| `-y`, `--yes` | | Upload without asking for confirmation, e.g. in scripts. |
+| `--no-backup` | | Upload without downloading a backup first. |
+
+For example, for a stack in `/opt/speedyfingers`, uploading without a prompt:
+
+```bash
+scripts/gestures.sh -d /opt/speedyfingers -y upload user@example.com gestures.json
+```
+
 ## Backend (FastAPI)
 
 ## Local development
