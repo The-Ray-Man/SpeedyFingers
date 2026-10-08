@@ -1,36 +1,67 @@
-# VIScon Hackathon Template
+# SpeedyFingers
 
-Welcome, hackers, to the VIScon Hackathon!
+A browser game you play with your hands in front of a webcam. Hand tracking runs
+in the browser with [MediaPipe](https://ai.google.dev/edge/mediapipe); players
+copy the gesture or symbol shown on screen to score points. Scores go to a
+small leaderboard backend.
 
-This repository is a template for your hackathon project. It includes a
-basic structure for your project, as well as some resources to help you
-get started.
+The project started from the VIScon Hackathon template.
 
-Feel free to modify this template as you see fit or yeet it completely :)
+## Game modes
 
-## Project Overview
+| Mode | Route | Description |
+| :--- | :---- | :---------- |
+| **Gesture Battle** (multiplayer) | `/live_game` | Two players share one camera, one on each side of the frame. Each player is shown a target gesture and scores by matching it. Coins appear on screen and can be grabbed. Show 👍👍 or press Start to begin. |
+| **Single Player Challenge** | `/game-1` | Copy hand shapes for symbols (including LaTeX symbols) recorded in Dev Mode. The variants are fetched from the backend and matched in the browser (`utils/localGestureMatcher.ts`). |
+| **Tutorial** | `/tutorial`, `/tutorialFinger` | Introduces the controls. |
+| **Dev Mode** | `/dev-mode` | Record, test, and delete the gesture variants for each symbol and tune each symbol's match threshold. |
 
-This template provides a solid starting point for your hackathon project, featuring:
+Menus can also be controlled with gestures. For example, 🤟 switches between
+options and 👎 selects one.
 
-- **Frontend:** A simple React application.
-- **Backend:** A Python backend built with the **FastAPI** framework.
-- **AI Integration:** An AI-powered endpoint that generates structured data from natural language prompts using `litellm`.
-- **Proxy:** A Traefik reverse proxy to route traffic seamlessly.
+A full-body mode (`BodyGame`, `TutorialBody`, pose detection with TensorFlow.js)
+exists in the code, but its routes are switched off in `frontend/src/App.tsx`.
 
-Everything is containerized with Docker, so you can get up and running with a single command.
+## Architecture
 
-## Quick Start
+```
+            ┌──────────────────────── Traefik :8080 ───────────────────────┐
+ browser ──▶│  /api/*  ──▶ backend  (FastAPI, uvicorn :8000)               │
+            │  /*      ──▶ frontend (nginx serving the Vite build, :80)    │
+            └──────────────────────────────────────────────────────────────┘
+```
 
-To start all the services, simply run:
+- **Frontend** (`frontend/`): React 19, TypeScript, Vite, and Chakra UI v3.
+  Hand landmarks and the built-in gesture classifier come from
+  `@mediapipe/tasks-vision`. The WASM runtime and `.task` models are loaded at
+  runtime from jsDelivr and Google Cloud Storage. The webcam is used only in
+  the browser and video is never uploaded.
+- **Backend** (`backend/`): FastAPI. It stores leaderboards and gesture
+  definitions as JSON files in `backend/data/`. Server-side matching
+  (`backend/ai.py`, used by Dev Mode's test feature) normalizes the landmarks to the wrist and to hand size,
+  then turns their average distance into a similarity score with
+  `exp(-5·d)`.
+- **Proxy**: Traefik, configured with Docker labels in `docker-compose.yml`.
+
+Other folders:
+
+- `Vision/vision.py`: experimental script that renders LaTeX symbols to
+  bitmaps. The app doesn't use it.
+- `other/index.html`: standalone prototype of the co-op hand-recognition game.
+  The app doesn't use it.
+
+## Quick start (Docker)
 
 ```bash
+cp .env.sample .env
 docker compose up --build
 ```
 
-This will build the containers and start the frontend, backend, and proxy. The application will then be available at:
+- App: <http://localhost:8080>
+- API docs (Swagger): <http://localhost:8080/api/docs>
 
-- **Frontend:** [`http://localhost:8080`](http://localhost:8080)
-- **Backend API:** [`http://localhost:8080/api`](http://localhost:8080/api)
+The webcam only works in a secure context. That means `localhost`, or HTTPS
+on any other host.
 
 ## Deployment
 
@@ -153,78 +184,62 @@ docker compose restart backend
 
 ## Backend (FastAPI)
 
-The backend is a Python application built with the **FastAPI** framework. It provides a REST API for a multi-user todo list and includes an AI-powered feature.
+## Local development
 
-The backend code is located in the `/backend` directory. You can start it independently by running:
+### Backend
 
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-python3 app.py
+python3 app.py                 # http://localhost:8000/api/docs
 ```
 
-You can then get started by visiting http://localhost:8000/api/docs.
-
-### API Endpoints
-
-The following endpoints are available. Note that the `/api` prefix is required for all backend routes.
-
-| Method   | Path                   | Description                                         |
-| :------- | :--------------------- | :-------------------------------------------------- |
-| `GET`    | `/api/me`              | Get the current user.                               |
-| `GET`    | `/api/todos`           | Get all todos for the current user.                 |
-| `POST`   | `/api/todos`           | Create a new todo for the current user.             |
-| `DELETE` | `/api/todos/{todo_id}` | Delete a specific todo by its ID.                   |
-| `GET`    | `/api/todos/generate`  | Suggests a new todo from a natural language prompt. |
-
-### Authentication
-
-By default, authentication is handled by the VIScon platform's central proxy. When a user logs into the platform, these headers are automatically added to requests forwarded to your application.
-
-The following headers are expected on requests to the `/api` endpoints:
-
-- `X-User-Id`: A unique identifier for the user.
-- `X-User-Name`: The user's full name.
-
-The backend uses the `X-User-Id` to maintain a separate todo list for each user.
-
-### AI-Powered Todo Generation
-
-We've integrated an AI service using `litellm` to generate structured todo items from natural language.
-
-This feature requires credentials for an LLM proxy. To enable it, ensure that the `.env` file in the root directory of the project contains you team-specific API key.
-
-```ini
-# .env
-...
-LITELLM_PROXY_API_KEY=your-secret-api-key
-```
-
-## Frontend (React)
-
-The frontend is a simple React app that displays some information and hosts a todo list app. It is written in TypeScript, and the backend requests are made using the `fetch` API.
-
-The frontend code is located in the `/frontend` directory. You can start it independently by running:
+### Frontend
 
 ```bash
 cd frontend
 npm install
-
-npm run dev
+npm run dev                    # http://localhost:5173
 ```
 
-You can then get started by visiting http://localhost:3000.
+The Vite dev server forwards `/api` to `http://localhost:8000`. To use a
+different API URL, set `VITE_API_BASE_URL`. Only the leaderboard client reads
+this variable.
 
-## Proxy (Traefik)
+### Smoke test
 
-The project uses Traefik as a reverse proxy. It acts as the single entry point for the application, listening on `http://localhost:8080`.
+`backend/test_api.py` sends a few requests to a running backend. It needs
+`requests`, which isn't in `requirements.txt`.
 
-Its main responsibilities are:
+```bash
+pip install requests
+python backend/test_api.py
+```
 
-- Routing requests starting with `/api` to the backend service.
-- Routing all other requests (`/`) to the frontend service.
+## API
 
-The configuration is done via Docker labels in the `docker-compose.yml` file, so you can easily add new services and routing rules.
+All routes are under `/api`.
+
+| Method | Path | Description |
+| :----- | :--- | :---------- |
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/leaderboard/{finger\|body}/{single\|multi}` | Top 10 for a game type and mode |
+| `GET` | `/api/leaderboard/single`, `/api/leaderboard/multi` | Legacy routes that return the finger leaderboards |
+| `POST` | `/api/score/submit` | Submit `{name, score, symbols, game_mode, game_type}`. The best score per name is kept. |
+| `GET` | `/api/gestures` | List symbols and their variant counts |
+| `GET` | `/api/gestures/{symbol}` | All variants of one symbol |
+| `GET` | `/api/gestures/random/get` | A random symbol with its variants |
+| `POST` | `/api/gestures` | Add a recorded variant to a symbol |
+| `POST` | `/api/gestures/match` | Compare landmarks with a symbol's variants |
+| `PATCH` | `/api/gestures/{symbol}/threshold?threshold=0.6` | Set a symbol's match threshold |
+| `DELETE` | `/api/gestures/{symbol}` | Delete a symbol |
+| `DELETE` | `/api/gestures/{symbol}/{variant_id}` | Delete one variant |
+
+None of these endpoints require authentication.
+
+## Project status
+
+This is a hackathon prototype. For what still has to be done before it can be
+deployed publicly, see [PRODUCTION_TODO.md](PRODUCTION_TODO.md).
