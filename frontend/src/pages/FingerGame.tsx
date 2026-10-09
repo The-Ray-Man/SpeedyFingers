@@ -569,13 +569,6 @@ const PlayMode: React.FC = () => {
     navigate('/play');
   };
 
-  // Manual skip
-  const handleSkip = () => {
-    if (gameStarted && !gameOver) {
-      loadNextSymbol();
-    }
-  };
-
   return (
     <Box
       bg={pageBackground}
@@ -702,9 +695,6 @@ const PlayMode: React.FC = () => {
                             Loading next prompt...
                           </Text>
                         )}
-                        <Button size="sm" variant="surface" colorScheme="purple" onClick={handleSkip}>
-                          Skip Symbol
-                        </Button>
                       </VStack>
                     </Box>
                   )}
